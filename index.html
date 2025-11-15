@@ -97,18 +97,37 @@
             transform: scale(1.2);
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
         }
+        /* Modal for Hero Name */
+        #hero-name-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 60;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #hero-name-box {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8 min-h-screen">
 
     <div class="max-w-xl mx-auto">
         
-        <h1 class="text-4xl sm:text-5xl font-extrabold text-center mb-1 text-gray-800 drop-shadow-lg flex items-center justify-center">
-            <span class="text-yellow-500 mr-3">👑</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-center mb-2 text-gray-800 flex items-center justify-center">
+            <span class="text-yellow-500 text-6xl mr-3 transform -translate-y-1">👑</span>
             Habit Hero
-            <span class="text-yellow-500 ml-3">👑</span>
+            <span class="text-yellow-500 text-6xl ml-3 transform -translate-y-1">👑</span>
         </h1>
-        <p class="text-center text-gray-500 mb-8" id="welcome-message">Gamifying your consistency, one goal at a time.</p>
+        <p id="welcome-message" class="text-center text-gray-500 mb-8">Gamifying your consistency, one goal at a time.</p>
 
         
         <div id="stats-container" class="grid grid-cols-3 gap-4 mb-8">
@@ -228,27 +247,24 @@
         </div>
 
         
-        <div id="hero-name-modal" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-80 z-50 flex justify-center items-center p-4">
-            <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full">
-                <h3 class="text-3xl font-extrabold mb-4 text-indigo-600 text-center">Welcome, New Hero!</h3>
-                <p class="text-gray-700 mb-6 text-center">To save your progress, please enter your unique Hero Name.</p>
+        <div id="hero-name-modal" class="hidden">
+            <div id="hero-name-box" class="max-w-md w-full text-center">
+                <h2 class="text-3xl font-extrabold text-indigo-600 mb-2">Welcome, New Hero!</h2>
+                <p class="text-gray-600 mb-6">Please enter your unique Hero Name to save your progress permanently.</p>
                 
-                <input type="text" id="hero-name-input" 
-                       placeholder="e.g., RuariFit24"
-                       class="w-full p-3 border-2 border-gray-300 rounded-lg text-lg focus:border-indigo-500 focus:ring-indigo-500 mb-3"
-                       autofocus>
-
-                <p class="text-xs text-gray-600 mb-6 text-center">
-                    <span class="font-bold text-red-500">Tip:</span> Use a combination of letters and numbers for a unique name that ensures your progress is saved reliably!
+                <input type="text" id="hero-name-input" placeholder="e.g., RuariFit24"
+                       class="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2">
+                
+                <p class="text-sm text-gray-600 mb-6">
+                    <span class="font-bold text-red-500">Tip:</span> Use letters and numbers for a unique name (e.g., John321) to ensure your profile loads correctly every time.
                 </p>
 
-                <button id="start-journey-button"
-                        class="w-full py-3 bg-teal-600 text-white font-bold rounded-lg text-lg hover:bg-teal-700 transition focus:outline-none focus:ring-4 focus:ring-teal-400">
+                <button id="start-journey-btn"
+                        class="w-full py-3 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition shadow-lg">
                     Start My Journey
                 </button>
             </div>
         </div>
-
 
         
         <div class="mt-4 text-center text-xs text-gray-400">
@@ -258,27 +274,33 @@
 
     
     <script type="module">
+        // --- PUBLIC FIREBASE CONFIGURATION ---
+        // This object must be populated with your project's credentials for persistence to work.
+        const MY_PUBLIC_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyA49PvCa1rN1BoiJANFvCPbH7zkHEtvGWo",
+            authDomain: "hero-habit-tracker.firebaseapp.com",
+            projectId: "hero-habit-tracker",
+            storageBucket: "hero-habit-tracker.firebasestorage.app",
+            messagingSenderId: "32949342120",
+            appId: "1:32949342120:web:79fc2cf241aefe13f0979d",
+            measurementId: "G-67VDRZ783J"
+        };
+        // --- END PUBLIC FIREBASE CONFIGURATION ---
+
+        // FIX: Removed the failing Firebase Auth imports and calls. We only need App and Firestore.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- GLOBAL CONFIGURATION ---
+        // --- GLOBAL VARIABLES ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // When deploying publicly (e.g., GitHub Pages), replace {} with your actual Firebase config:
-        const MY_PUBLIC_FIREBASE_CONFIG = {}; 
-        const firebaseConfig = Object.keys(MY_PUBLIC_FIREBASE_CONFIG).length > 0
-            ? MY_PUBLIC_FIREBASE_CONFIG
-            : JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
+        
         let app;
         let db;
-        let auth;
+        // let auth; // No longer needed
+        let heroName = null;
         let userRef = null;
         let userData = null;
-        let heroName = null;
-        
-        // Data is saved publicly based on Hero Name
+
         const USER_PROFILES_COLLECTION = `artifacts/${appId}/public/data/hero_profiles`;
         const SNACK_REWARD_THRESHOLD = 5;
 
@@ -289,58 +311,40 @@
 
         const BADGES = {
             'starter_star': {
-                name: "Starter Star",
-                description: "Earn 50 Total Points.",
-                criteria: (data) => data.points >= 50,
-                icon: '⭐️'
+                name: "Starter Star", description: "Earn 50 Total Points.",
+                criteria: (data) => data.points >= 50, icon: '⭐️'
             },
             'hiit_master': {
-                name: "HIIT Master",
-                description: "Complete 10 HIIT Workouts.",
-                criteria: (data) => data.workoutCount >= 10,
-                icon: '🏋️'
+                name: "HIIT Master", description: "Complete 10 HIIT Workouts.",
+                criteria: (data) => data.workoutCount >= 10, icon: '🏋️'
             },
             'clean_eater': {
-                name: "Clean Eater",
-                description: "Log 10 Healthy Snacks.",
-                criteria: (data) => data.snackCount >= 10,
-                icon: '🥗'
+                name: "Clean Eater", description: "Log 10 Healthy Snacks.",
+                criteria: (data) => data.snackCount >= 10, icon: '🥗'
             },
             'baby_streak': {
-                name: "Baby Streak",
-                description: "Hit a 3-day completion streak.",
-                criteria: (data) => data.currentStreak >= 3,
-                icon: '🥉'
+                name: "Baby Streak", description: "Hit a 3-day completion streak.",
+                criteria: (data) => data.currentStreak >= 3, icon: '🥉'
             },
             'weekly_warrior': {
-                name: "Weekly Warrior",
-                description: "Hit a 7-day completion streak.",
-                criteria: (data) => data.currentStreak >= 7,
-                icon: '🥈'
+                name: "Weekly Warrior", description: "Hit a 7-day completion streak.",
+                criteria: (data) => data.currentStreak >= 7, icon: '🥈'
             },
             'monthly_master': {
-                name: "Monthly Master",
-                description: "Hit a 30-day completion streak.",
-                criteria: (data) => data.currentStreak >= 30,
-                icon: '🥇'
+                name: "Monthly Master", description: "Hit a 30-day completion streak.",
+                criteria: (data) => data.currentStreak >= 30, icon: '🥇'
             },
             'level_climber': {
-                name: "Level Climber",
-                description: "Reach Level 5 (200 Total Points).",
-                criteria: (data) => getLevel(data.points) >= 5,
-                icon: '⬆️'
+                name: "Level Climber", description: "Reach Level 5 (200 Total Points).",
+                criteria: (data) => getLevel(data.points) >= 5, icon: '⬆️'
             },
             'marathoner': {
-                name: "Marathoner",
-                description: "Complete 50 HIIT Workouts.",
-                criteria: (data) => data.workoutCount >= 50,
-                icon: '🏃‍♂️'
+                name: "Marathoner", description: "Complete 50 HIIT Workouts.",
+                criteria: (data) => data.workoutCount >= 50, icon: '🏃‍♂️'
             },
             'food_journaler': {
-                name: "Food Journaler",
-                description: "Log 100 Healthy Snacks.",
-                criteria: (data) => data.snackCount >= 100,
-                icon: '📚'
+                name: "Food Journaler", description: "Log 100 Healthy Snacks.",
+                criteria: (data) => data.snackCount >= 100, icon: '📚'
             }
         };
 
@@ -357,16 +361,20 @@
             const dateArray = [];
             let currentDate = new Date(start);
             while (currentDate <= end) {
-                // Ensure date formatting is clean (avoid timezone offsets changing the day)
                 dateArray.push(currentDate.toISOString().slice(0, 10));
                 currentDate.setDate(currentDate.getDate() + 1);
             }
             return dateArray;
         }
-        
+
+        function getLevel(points) {
+            if (points < 50) return 1;
+            return Math.floor(points / 50) + 1;
+        }
+
         function sanitizeName(name) {
-            // Converts name to lowercase and removes non-alphanumeric characters for use as a database key.
-            return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            // Remove whitespace and convert to lowercase for document ID consistency
+            return name.replace(/\s/g, '').toLowerCase();
         }
 
         // --- UI FUNCTIONS ---
@@ -374,11 +382,10 @@
             const container = document.getElementById('message-container');
             const box = document.getElementById('message-box');
             document.getElementById('message-title').textContent = title;
-            document.getElementById('message-text').innerHTML = message; // Use innerHTML for badge name formatting
+            document.getElementById('message-text').innerHTML = message;
             container.classList.remove('hidden');
             container.classList.add('flex');
             
-            // Trigger animation
             setTimeout(() => {
                 box.classList.remove('scale-95', 'opacity-0');
                 box.classList.add('scale-100', 'opacity-100');
@@ -395,18 +402,20 @@
             setTimeout(() => {
                 container.classList.add('hidden');
                 container.classList.remove('flex');
-            }, 300); // Wait for transition to finish
+            }, 300);
         }
 
-        function getLevel(points) {
-            // Simple level calculation: Level 1 starts at 0, Level N starts at N * 50 points
-            if (points < 50) return 1;
-            return Math.floor(points / 50) + 1;
+        function showHeroNameModal() {
+            document.getElementById('hero-name-modal').classList.remove('hidden');
+        }
+
+        function hideHeroNameModal() {
+            document.getElementById('hero-name-modal').classList.add('hidden');
         }
 
         function renderBadges() {
             const container = document.getElementById('badges-container');
-            container.innerHTML = ''; // Clear previous badges
+            container.innerHTML = '';
 
             if (!userData || !userData.earnedBadges) return;
 
@@ -433,12 +442,11 @@
             const today = new Date();
             const todayStr = getTodayDateString();
 
-            // Start 30 days ago for history, end 335 days from now (to cover a full year visualization)
             const startDate = new Date(today);
-            startDate.setDate(today.getDate() - 30); // 30 days of history
+            startDate.setDate(today.getDate() - 30); 
 
             const endDate = new Date(today);
-            endDate.setDate(today.getDate() + 335); // Visualizing ~1 year total (~365 days)
+            endDate.setDate(today.getDate() + 335); 
 
             const dates = getDatesInRange(startDate, endDate);
 
@@ -462,15 +470,9 @@
                     title += " - Today's Goal";
                     statusClass = 'today';
                 } else if (dateStr < todayStr) {
-                    // Only mark as missed if date is in the past AND not completed
                     title += " - Missed Goal 🙁";
-                    // statusClass defaults to light gray (e5e7eb)
-                } else {
-                    title += " - Future Goal";
-                    // statusClass defaults to light gray (e5e7eb)
                 }
                 
-                // Wrap the day-stop in a div for spacing/alignment control above the track
                 const stopWrapper = document.createElement('div');
                 stopWrapper.className = 'day-stop-wrapper'; 
 
@@ -482,15 +484,12 @@
                 container.appendChild(stopWrapper);
             });
 
-            // Scroll to today's date
             if (dates.length > 0) {
                 const todayIndex = dates.findIndex(d => d === todayStr);
                 if (todayIndex !== -1) {
-                    // Use a slight delay to ensure rendering is complete
                     setTimeout(() => {
                         const stopElement = container.children[todayIndex];
                         if (stopElement) {
-                            // Calculate scroll position to center "today"
                             const scrollPosition = stopElement.offsetLeft - (container.parentElement.offsetWidth / 2) + (stopElement.offsetWidth / 2);
                             container.parentElement.scrollLeft = scrollPosition;
                         }
@@ -506,15 +505,20 @@
             const today = getTodayDateString();
             const daily = userData.dailyStatus[today] || { workout: false, snack: false };
 
-            document.getElementById('welcome-message').textContent = `Welcome back, ${heroName}!`;
             document.getElementById('total-points').textContent = userData.points;
             document.getElementById('current-level').textContent = getLevel(userData.points);
             document.getElementById('current-streak').textContent = userData.currentStreak;
             
+            // Welcome message update
+            if (heroName) {
+                document.getElementById('welcome-message').textContent = `Welcome back, ${heroName}!`;
+            } else {
+                 document.getElementById('welcome-message').textContent = `Gamifying your consistency, one goal at a time.`;
+            }
+
             // Update Cheat Meal Tracker
             document.getElementById('cheat-meals-earned').textContent = userData.cheatMealsEarned;
             
-            // Calculate snacks needed for NEXT reward
             const snacksNeeded = SNACK_REWARD_THRESHOLD - (userData.snackCount % SNACK_REWARD_THRESHOLD);
             document.getElementById('snacks-to-next-reward').textContent = snacksNeeded === SNACK_REWARD_THRESHOLD ? SNACK_REWARD_THRESHOLD : snacksNeeded;
 
@@ -530,36 +534,27 @@
             }
 
             renderBadges();
-            renderRoadmap();
+            renderRoadmap(); 
 
             const workoutBtn = document.getElementById('check-workout');
             const snackBtn = document.getElementById('check-snack');
 
-            // Update Workout Button State
-            if (daily.workout) {
-                workoutBtn.classList.add('checked');
-                workoutBtn.classList.remove('not-checked');
-                workoutBtn.textContent = 'Completed!';
-                workoutBtn.disabled = true;
-            } else {
-                workoutBtn.classList.remove('checked');
-                workoutBtn.classList.add('not-checked');
-                workoutBtn.textContent = 'Check In';
-                workoutBtn.disabled = false;
-            }
+            const updateButton = (btn, isDone) => {
+                if (isDone) {
+                    btn.classList.add('checked');
+                    btn.classList.remove('not-checked');
+                    btn.textContent = 'Completed!';
+                    btn.disabled = true;
+                } else {
+                    btn.classList.remove('checked');
+                    btn.classList.add('not-checked');
+                    btn.textContent = 'Check In';
+                    btn.disabled = false;
+                }
+            };
 
-            // Update Snack Button State
-            if (daily.snack) {
-                snackBtn.classList.add('checked');
-                snackBtn.classList.remove('not-checked');
-                snackBtn.textContent = 'Completed!';
-                snackBtn.disabled = true;
-            } else {
-                snackBtn.classList.remove('checked');
-                snackBtn.classList.add('not-checked');
-                snackBtn.textContent = 'Check In';
-                snackBtn.disabled = false;
-            }
+            updateButton(workoutBtn, daily.workout);
+            updateButton(snackBtn, daily.snack);
         }
 
         // --- FIREBASE/CORE LOGIC ---
@@ -570,7 +565,7 @@
                 heroName: name,
                 points: 0,
                 currentStreak: 0,
-                lastCompletionDate: today, // Set last completion date to today to start streak potential
+                lastCompletionDate: today,
                 workoutCount: 0,
                 snackCount: 0,
                 cheatMealsEarned: 0,
@@ -580,6 +575,15 @@
         }
 
         async function fetchUserData(name) {
+            // Must have db available for fetching
+            if (!db) {
+                userData = getInitialUserData(name);
+                heroName = name;
+                updateUI();
+                showMessage("Database Warning", "Could not connect to the database. Progress will only be saved for this session.");
+                return;
+            }
+
             const sanitizedName = sanitizeName(name);
             userRef = doc(db, USER_PROFILES_COLLECTION, sanitizedName);
             
@@ -589,26 +593,27 @@
                 if (docSnap.exists()) {
                     // Load existing data
                     userData = docSnap.data();
+                    heroName = userData.heroName; // Load the properly cased name
                     console.log("Existing user data loaded:", userData);
                 } else {
                     // Initialize new data
                     userData = getInitialUserData(name);
                     await setDoc(userRef, userData);
-                    console.log(`New user profile created for ${name}.`);
+                    heroName = name;
+                    showMessage("Welcome, New Hero!", `Your profile for **${heroName}** has been created! Click 'Check In' to start earning points.`);
+                    console.log("New user profile created.");
                 }
 
-                heroName = userData.heroName; // Store the actual name
                 checkAndResetStreak();
                 checkForBadges(); 
                 updateUI();
-                
             } catch (error) {
                 console.error("Error fetching or initializing user data:", error);
-                // If there's a Firebase error, initialize a temporary profile for UI rendering
+                // If fetching/saving fails (e.g., Firestore not set up), initialize data locally for the session
                 userData = getInitialUserData(name);
                 heroName = name;
                 updateUI();
-                showMessage("Database Warning", "Could not connect to the database. Progress will not save permanently. Please check your Firebase configuration.");
+                showMessage("Database Warning", "Could not connect to the database. Progress will only be saved for this session.");
             }
         }
 
@@ -632,8 +637,6 @@
                     console.log(`Streak broken. Last check-in was ${lastDate}.`);
                     showMessage("Streak Broken 😔", `Your streak of ${userData.currentStreak} days ended. Don't worry, start a new one today!`);
                     userData.currentStreak = 0;
-                    // Persist the reset
-                    if (userRef) setDoc(userRef, userData); 
                 }
             }
         }
@@ -643,7 +646,6 @@
 
             Object.keys(BADGES).forEach(key => {
                 const badge = BADGES[key];
-                // Check if the badge is NOT already earned AND the criteria is met
                 if (!userData.earnedBadges[key] && badge.criteria(userData)) {
                     userData.earnedBadges[key] = true;
                     newBadgesEarned = true;
@@ -654,22 +656,33 @@
             return newBadgesEarned;
         }
 
-        async function useCheatMeal() {
-            if (!userRef) {
-                showMessage("Login Required", "Please refresh and enter your Hero Name to continue tracking.");
-                return;
+        async function saveUserData() {
+            if (db && userRef) {
+                 try {
+                    await setDoc(userRef, userData);
+                    return true;
+                } catch (error) {
+                    console.error("Error saving user data:", error);
+                    showMessage("Save Error", "Could not save progress to the database. Progress is currently only temporary.");
+                    return false;
+                }
+            } else {
+                // Not connected to DB, but we still update local data.
+                return true;
             }
+        }
+
+        async function useCheatMeal() {
             if (userData.cheatMealsEarned > 0) {
                 userData.cheatMealsEarned--;
-                try {
-                    await setDoc(userRef, userData);
+                
+                const saved = await saveUserData();
+                if (saved) {
                     showMessage("Reward Claimed! 😋", "Go enjoy your cheat meal! Your token has been used.");
-                    updateUI();
-                } catch (error) {
-                    console.error("Error using cheat meal:", error);
+                } else {
                     userData.cheatMealsEarned++; // Rollback on failure
-                    showMessage("Error", "Could not save token usage. Please try again.");
                 }
+                updateUI();
             } else {
                 showMessage("No Tokens", "You need to earn a cheat meal token first! Log more healthy snacks.");
             }
@@ -677,25 +690,19 @@
 
         async function completeTask(task) {
             if (!heroName) {
-                document.getElementById('hero-name-modal').classList.remove('hidden');
-                showMessage("Login Required", "Please enter your Hero Name to start tracking your progress!");
+                showHeroNameModal();
                 return;
             }
-            if (!userRef) {
-                 // Still allow local updates for immediate feedback if no database connection
-                 console.warn("No database connection. Progress is local-only.");
-            }
+            if (!userData) return; 
 
             const today = getTodayDateString();
             const pointsGained = POINTS[task];
             const taskKey = task.toLowerCase(); // 'workout' or 'snack'
 
-            // Ensure today's status object exists
             if (!userData.dailyStatus[today]) {
                 userData.dailyStatus[today] = { workout: false, snack: false, pointsEarned: 0 };
             }
 
-            // Check if already completed
             if (userData.dailyStatus[today][taskKey]) {
                 showMessage("Already Done!", `You've already completed the ${task} task today. Check back tomorrow!`);
                 return;
@@ -711,7 +718,6 @@
             } else if (taskKey === 'snack') {
                 userData.snackCount++;
                 
-                // Check for Cheat Meal Reward (every 5 snacks)
                 if (userData.snackCount > 0 && userData.snackCount % SNACK_REWARD_THRESHOLD === 0) {
                     userData.cheatMealsEarned++;
                     showMessage("Cheat Meal Unlocked! 🍕", `Congratulations! You've logged ${userData.snackCount} healthy snacks and earned a free pass for a cheat meal! Total tokens: ${userData.cheatMealsEarned}`);
@@ -720,143 +726,103 @@
 
             // 2. Check for Streak Update
             const isAllCompleted = userData.dailyStatus[today].workout && userData.dailyStatus[today].snack;
-            let streakMsg = "";
 
             if (isAllCompleted) {
                 const lastDate = userData.lastCompletionDate;
                 const todayObj = new Date(today);
-                const lastDateObj = new Date(lastDate);
+                const lastDateObj = lastDate ? new Date(lastDate) : null;
+                const oneDayInMs = 24 * 60 * 60 * 1000;
 
-                if (lastDate && lastDateObj.getTime() === todayObj.getTime() - (24 * 60 * 60 * 1000)) {
+                let isConsecutive = false;
+                if (lastDateObj) {
+                    // Check if yesterday was the last day
+                    isConsecutive = lastDateObj.getTime() === todayObj.getTime() - oneDayInMs;
+                }
+
+                if (isConsecutive) {
                     userData.currentStreak++;
-                    streakMsg = `You hit all your goals! Your streak is now ${userData.currentStreak} days!`;
-                } else if (!lastDate || !isSameDay(lastDate, today)) {
-                    if (userData.currentStreak === 0) {
-                        userData.currentStreak = 1;
-                        streakMsg = `You hit all your goals and started a 1-day streak!`;
-                    }
+                    showMessage("Streak Progress! 🔥", `You hit all your goals! Your streak is now ${userData.currentStreak} days!`);
+                } else if (!isSameDay(lastDate, today)) {
+                    userData.currentStreak = 1;
+                    showMessage("Streak Started! 🎉", `You hit all your goals and started a 1-day streak!`);
                 }
                 
                 userData.lastCompletionDate = today;
             } else {
-                 streakMsg = `You earned ${pointsGained} points! Only one more task left to maintain your streak!`;
+                 showMessage("Points Gained!", `You earned ${pointsGained} points! Only one more task left to maintain your streak!`);
             }
             
             // 3. Check for badges
-            if (checkForBadges() === false) { // Only show general streak message if no badge was awarded
-                 showMessage("Points Gained!", streakMsg);
-            }
-            
-            // 4. Update the database
-            if (userRef) {
-                try {
-                    await setDoc(userRef, userData);
-                    console.log(`Task ${task} completed. Points: ${userData.points}. Streak: ${userData.currentStreak}`);
-                } catch (error) {
-                    console.error("Error updating user data:", error);
-                    showMessage("Error", "Could not save progress to the database.");
-                }
-            }
+            checkForBadges();
 
+            // 4. Update the UI and save to the database asynchronously
             updateUI();
+            await saveUserData();
+            console.log(`Task ${task} completed. Points: ${userData.points}. Streak: ${userData.currentStreak}`);
         }
 
-        // --- HERO NAME / LOGIN LOGIC ---
-        function setHeroName(name) {
-            name = name.trim();
-            if (!name) {
-                showMessage("Required", "Please enter a name to start your journey.");
+        // --- NAME-BASED LOGIN LOGIC ---
+        async function setHeroName(e) {
+            e.preventDefault();
+            const input = document.getElementById('hero-name-input');
+            const name = input.value.trim();
+
+            if (name.length < 2) {
+                showMessage("Name Required", "Please enter a valid Hero Name to begin your journey.");
                 return;
             }
             
-            // 1. Immediately update UI and hide modal for responsive feel
+            // 1. Immediately update UI to show responsiveness
             heroName = name;
-            document.getElementById('hero-name-modal').classList.add('hidden');
-            document.getElementById('welcome-message').textContent = `Welcome back, ${heroName}!`;
-            
-            // 2. Attempt to load or initialize profile based on the Hero Name
-            if (db) {
-                fetchUserData(name).then(() => {
-                    // Data is loaded and UI is updated via fetchUserData -> updateUI
-                });
-            } else {
-                 // No database: initialize local data only
-                userData = getInitialUserData(name);
-                updateUI();
-            }
-        }
+            hideHeroNameModal();
+            document.getElementById('welcome-message').textContent = `Loading profile for ${heroName}...`;
 
+            // 2. Load the profile associated with this name (or create it)
+            await fetchUserData(name);
+        }
+        
         // --- INITIALIZATION ---
-        function attachEventListeners() {
+        async function initializeFirebase() {
+            const firebaseConfig = MY_PUBLIC_FIREBASE_CONFIG;
+            const isConfigMissing = Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey;
+
+            if (isConfigMissing) {
+                console.warn("Warning: Firebase config missing. Data will not save permanently.");
+                document.getElementById('auth-status').textContent = 'Warning: Firebase config missing. Data will not save permanently.';
+                // If config is missing, just show the login modal and let the user proceed with local-only tracking.
+                showHeroNameModal();
+            } else {
+                try {
+                    // FIX: We no longer rely on Auth, so we initialize App and Firestore only.
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    
+                    document.getElementById('auth-status').textContent = `Database Status: Ready`;
+                    
+                    // Show the modal to prompt for the Hero Name, which then triggers data load.
+                    showHeroNameModal();
+
+                } catch (error) {
+                    console.error("Firebase initialization error:", error);
+                    document.getElementById('auth-status').textContent = `Initialization Error: Check console.`;
+                    showHeroNameModal();
+                }
+            }
+
+            // 3. Attach Event Listeners (MUST be outside the conditional checks to ensure buttons work)
             document.getElementById('check-workout').addEventListener('click', () => completeTask('WORKOUT'));
             document.getElementById('check-snack').addEventListener('click', () => completeTask('SNACK'));
             document.getElementById('use-cheat-meal').addEventListener('click', useCheatMeal);
             document.getElementById('close-message').addEventListener('click', hideMessage);
-
-            const nameInput = document.getElementById('hero-name-input');
-            document.getElementById('start-journey-button').addEventListener('click', () => {
-                setHeroName(nameInput.value);
-            });
-            nameInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    setHeroName(nameInput.value);
+            
+            // Hero Name Modal Listeners
+            const startJourneyBtn = document.getElementById('start-journey-btn');
+            startJourneyBtn.addEventListener('click', setHeroName);
+            document.getElementById('hero-name-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    setHeroName(e);
                 }
             });
-        }
-
-        async function initializeFirebase() {
-            attachEventListeners(); // Ensure buttons work regardless of Firebase status
-
-            if (Object.keys(firebaseConfig).length === 0) {
-                console.warn("Firebase config is missing. App will run in local mode (progress will not save).");
-                document.getElementById('auth-status').textContent = 'Warning: Firebase config missing. Data will not save permanently.';
-                document.getElementById('hero-name-modal').classList.remove('hidden');
-                // Initialize a temporary profile so the UI can draw
-                userData = getInitialUserData("Guest"); 
-                heroName = "Guest";
-                updateUI();
-                return;
-            }
-
-            try {
-                setLogLevel('error');
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                // 1. Handle Authentication (using provided token or anonymous sign-in)
-                let authPromise;
-                if (initialAuthToken) {
-                    authPromise = signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    authPromise = signInAnonymously(auth);
-                }
-                await authPromise;
-
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        document.getElementById('auth-status').textContent = `Status: Authenticated`;
-                        
-                        // Check if a Hero Name is already known in session storage
-                        const lastHeroName = localStorage.getItem('habitHeroName');
-                        
-                        if (lastHeroName) {
-                            // If a name is remembered, load that profile immediately
-                            setHeroName(lastHeroName); 
-                        } else {
-                            // If no name is remembered, show the login modal
-                            document.getElementById('hero-name-modal').classList.remove('hidden');
-                        }
-                    } else {
-                        document.getElementById('auth-status').textContent = 'Authentication failed.';
-                    }
-                });
-
-            } catch (error) {
-                console.error("Firebase initialization error:", error);
-                document.getElementById('auth-status').textContent = `Initialization Error. App may not save data.`;
-                document.getElementById('hero-name-modal').classList.remove('hidden');
-            }
         }
 
         initializeFirebase();
