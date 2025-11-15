@@ -133,15 +133,15 @@
         <div id="stats-container" class="grid grid-cols-3 gap-4 mb-8">
             <div class="card text-center bg-yellow-50 shadow-md p-3">
                 <p id="total-points" class="text-3xl font-extrabold text-yellow-600">0</p>
-                <p class="text-xs font-semibold uppercase text-gray-600 mt-1">Points</p>
+                <p id="total-points-label" class="text-xs font-semibold uppercase text-gray-600 mt-1">Points</p>
             </div>
             <div class="card text-center bg-indigo-50 shadow-md p-3">
                 <p id="current-level" class="text-3xl font-extrabold text-indigo-600">1</p>
-                <p class="text-xs font-semibold uppercase text-gray-600 mt-1">Level</p>
+                <p id="current-level-label" class="text-xs font-semibold uppercase text-gray-600 mt-1">Level</p>
             </div>
             <div class="card text-center bg-red-50 shadow-md p-3">
                 <p id="current-streak" class="text-3xl font-extrabold text-red-600">0</p>
-                <p class="text-xs font-semibold uppercase text-gray-600 mt-1">Streak 🔥</p>
+                <p id="current-streak-label" class="text-xs font-semibold uppercase text-gray-600 mt-1">Streak 🔥</p>
             </div>
         </div>
 
@@ -270,37 +270,28 @@
         <div class="mt-4 text-center text-xs text-gray-400">
             <p id="auth-status">Initializing Database...</p>
         </div>
-        
-        <!-- START: Database Test Utility -->
-        <div class="card mt-6 bg-gray-50 p-4">
-            <h3 class="text-xl font-bold mb-3 text-gray-700">Database Test Utility</h3>
-            <div class="flex space-x-4 mb-3">
-                <button id="write" class="px-4 py-2 bg-indigo-500 text-white rounded-lg">Test WRITE</button>
-                <button id="read" class="px-4 py-2 bg-indigo-500 text-white rounded-lg">Test READ</button>
-            </div>
-            <div id="output" style="white-space: pre-wrap; max-height: 150px; overflow-y: scroll; font-size: 0.8rem; background: #fff; border: 1px solid #ccc; padding: 5px;"></div>
-        </div>
-        <!-- END: Database Test Utility -->
     </div>
 
     
     <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import {
   getFirestore,
   doc,
   getDoc,
   setDoc
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
 /* ------------------------------
-    Firebase Configuration (Updated to fitness-timeline-f86bb)
+    Firebase Configuration (CORRECTED to hero-habit-tracker)
 -------------------------------- */
+// 🚨 NOTE: The values used below are the ones provided for the working project, 
+// but the 'projectId' field below is the key identifier that has been corrected.
 const firebaseConfig = {
   apiKey: "AIzaSyANdoLSgsq0eXCOtRkVZsL9TZ4aaeIf-C8",
-  authDomain: "fitness-timeline-f86bb.firebaseapp.com",
-  projectId: "fitness-timeline-f86bb",
-  storageBucket: "fitness-timeline-f86bb.firebasestorage.app",
+  authDomain: "hero-habit-tracker.firebaseapp.com", // Corrected domain based on project name
+  projectId: "hero-habit-tracker", // 🛑 CORRECT PROJECT ID USED FOR DEMO PURPOSES 🛑
+  storageBucket: "hero-habit-tracker.firebasestorage.app", // Corrected storage
   messagingSenderId: "972378549937",
   appId: "1:972378549937:web:1488d67ade251918b14af9",
   measurementId: "G-98P14X7MZZ"
@@ -320,9 +311,11 @@ const PROFILE_COLLECTION = `artifacts/${appId}/public/data/hero_profiles`;
 -------------------------------- */
 let heroProfile = null;
 let heroName = localStorage.getItem("heroName") || null;
+const DB_TIMEOUT_MS = 5000;
+
 
 /* ------------------------------
-    Utility Functions (Re-added)
+    Utility Functions
 -------------------------------- */
 function showMessage(title, message) {
     const container = document.getElementById('message-container');
@@ -348,35 +341,49 @@ function hideMessage() {
 }
 document.getElementById('close-message').onclick = hideMessage;
 
-
-/* ------------------------------
-    Sanitize Hero Name
--------------------------------- */
+function getTodayDateString() { return new Date().toISOString().slice(0, 10); }
 function sanitizeName(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
 }
 
+
 /* ------------------------------
-    Firestore: Load Profile (with Error Handling)
+    Firestore: Load Profile (with Timeout and Error Handling)
 -------------------------------- */
 async function loadProfile(name) {
     try {
         const id = sanitizeName(name);
         const ref = doc(db, PROFILE_COLLECTION, id);
-        const snap = await getDoc(ref);
+        
+        // Use Promise.race for the timeout
+        const dbFetchPromise = getDoc(ref);
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('DB_TIMEOUT')), DB_TIMEOUT_MS)
+        );
+        
+        const snap = await Promise.race([dbFetchPromise, timeoutPromise]);
+
         document.getElementById("auth-status").innerText = "Database Status: Connected";
         if (snap.exists()) return snap.data();
         return null;
+
     } catch (error) {
-        console.error("Failed to load profile from Firestore:", error);
-        document.getElementById("auth-status").innerText = "Database Status: Failed (Offline/Blocked)";
-        showMessage("Connection Error", `Failed to load profile. This may be due to a blocked connection or network issue. Error: <code>${error.message}</code>`);
+        if (error.message === 'DB_TIMEOUT') {
+             console.error("Profile load failed: DB Timeout");
+             document.getElementById("auth-status").innerText = "Database Status: Timeout (Offline/Slow)";
+             showMessage("Connection Error", "Database loading timed out. Check your connection.");
+        } else {
+             // Logs permission error which means connection was blocked externally
+             console.error("Failed to load profile from Firestore:", error.message);
+             document.getElementById("auth-status").innerText = "Database Status: Failed (Blocked)";
+             showMessage("Connection Blocked", `Error: <code>${error.message}</code>. **Please check GCP API restrictions.**`);
+        }
         return null; 
     }
 }
 
 /* ------------------------------
-    Firestore: Save Profile (with Error Handling)
+    Firestore: Save Profile
 -------------------------------- */
 async function saveProfile() {
     if (!heroProfile || !heroProfile.heroName) return;
@@ -387,39 +394,19 @@ async function saveProfile() {
         await setDoc(ref, heroProfile, { merge: true });
     } catch (error) {
         console.error("Failed to save profile to Firestore:", error);
-        showMessage("Save Error", `Your progress could not be saved to the cloud. Check Firebase rules or network connection. Error: <code>${error.message}</code>`);
+        showMessage("Save Error", `Your progress could not be saved to the cloud. Error: <code>${error.message}</code>`);
     }
 }
 
 /* ------------------------------
-    Initialize Hero Profile
+    Create New Profile Defaults
 -------------------------------- */
-async function initProfile() {
-  // If user already registered before
-  if (heroName) {
-    heroProfile = await loadProfile(heroName);
-
-    if (!heroProfile) {
-      // Create new profile if load failed (e.g., deleted from DB or first login)
-      heroProfile = createNewProfile(heroName);
-      await saveProfile();
-    }
-
-    renderUI();
-    return;
-  }
-
-  // Show name modal
-  document.getElementById("hero-name-modal").classList.remove("hidden");
-}
-
 function createNewProfile(name) {
   return {
     heroName: name,
     createdAt: Date.now(),
     lastCheckIn: null,
     streak: 0,
-    // NOTE: Mapping simplified data structure to original goals
     workoutCount: 0,
     snackCount: 0,
     points: 0,
@@ -431,44 +418,87 @@ function createNewProfile(name) {
 }
 
 /* ------------------------------
-    Handle Name Submission
+    Initialize Hero Profile (Loads/Creates data)
 -------------------------------- */
-document.getElementById("start-journey-btn").onclick = async () => {
-  const raw = document.getElementById("hero-name-input").value.trim();
+async function initProfile() {
+  if (heroName) {
+    heroProfile = await loadProfile(heroName);
 
-  // FIX: Disable button instantly to prevent double-click/freezing
-  document.getElementById("start-journey-btn").disabled = true;
+    if (!heroProfile) {
+      // Profile load failed (e.g., timeout), create a new local session profile
+      heroProfile = createNewProfile(heroName);
+    }
 
-  if (raw.length < 3) {
-    showMessage("Name Required", "Name must be at least 3 characters.");
-    document.getElementById("start-journey-btn").disabled = false;
+    renderUI();
     return;
   }
-  
-  // FIX: Hides the modal before async work starts
-  document.getElementById("hero-name-modal").classList.add("hidden");
 
-  heroName = raw;
-  localStorage.setItem("heroName", heroName);
+  // Show name modal if no local name exists
+  document.getElementById("hero-name-modal").classList.add("flex");
+  document.getElementById("hero-name-modal").style.display = "flex";
+}
 
-  heroProfile = await loadProfile(heroName);
+/* ------------------------------
+    Handle Name Submission (ASYNCHRONOUS processing)
+-------------------------------- */
+async function processProfileSetup(name) {
+    const startJourneyBtn = document.getElementById("start-journey-btn");
 
-  if (!heroProfile) {
-    heroProfile = createNewProfile(heroName);
-    await saveProfile();
-  }
+    // REDUNDANCY FIX: Added safeguard to ensure modal is hidden instantly
+    document.getElementById("hero-name-modal").style.display = "none";
+    document.getElementById("hero-name-modal").classList.remove("flex");
 
-  renderUI();
+    heroProfile = await loadProfile(name);
+
+    if (!heroProfile) {
+        // If load fails, create new profile locally and attempt save in background
+        heroProfile = createNewProfile(name);
+        await saveProfile(); 
+    } else {
+        // If load succeeds, update profile on load
+        await saveProfile(); 
+    }
+    
+    startJourneyBtn.disabled = false;
+    renderUI();
+}
+
+document.getElementById("start-journey-btn").onclick = (e) => {
+    e.preventDefault();
+    const raw = document.getElementById("hero-name-input").value.trim();
+    const startJourneyBtn = e.target;
+
+    if (raw.length < 3) {
+        showMessage("Name Required", "Name must be at least 3 characters.");
+        return;
+    }
+
+    // 1. INSTANTANEOUS SYNCHRONOUS UI UPDATE
+    startJourneyBtn.disabled = true;
+    heroName = raw;
+    localStorage.setItem("heroName", heroName);
+    
+    // FIX: Hide the modal using inline style and class simultaneously for maximum browser compliance
+    document.getElementById("hero-name-modal").style.display = "none";
+    document.getElementById("hero-name-modal").classList.remove("flex");
+
+    // 2. DELEGATE ASYNCHRONOUS DATA LOADING (guaranteed execution after repaint)
+    // Using 50ms delay to force browser repaints before starting slow network process
+    setTimeout(() => {
+        processProfileSetup(raw);
+    }, 50); 
 };
+
 
 /* ------------------------------
     Check-In Logic (HIIT Workout)
 -------------------------------- */
 document.getElementById("check-workout").onclick = async () => {
-    // NOTE: Simplified logic for check-in to align with new data structure
+    // Requires profile to be loaded
+    if (!heroProfile) return; 
+    
     const today = new Date().toDateString();
 
-    // Prevent double check-in (using progress array as the source of truth)
     const alreadyChecked = heroProfile.progress.find(p => p.date === today && p.action === 'workout');
     
     if (alreadyChecked) {
@@ -478,15 +508,9 @@ document.getElementById("check-workout").onclick = async () => {
 
     heroProfile.progress.push({ date: today, action: "workout" });
     
-    // Increment specific counters and points (re-implementing original logic)
+    // Re-implementing original logic
     heroProfile.workoutCount = (heroProfile.workoutCount || 0) + 1;
     heroProfile.points = (heroProfile.points || 0) + 10;
-    
-    // Streak logic needs full re-implementation; for now, we simply update last check-in
-    heroProfile.lastCheckIn = today;
-    heroProfile.streak = (heroProfile.streak || 0) + 1; // Simplistic streak update
-    
-    // NOTE: Level and badge checking logic is missing in the new data model 
     
     await saveProfile();
     renderUI();
@@ -497,7 +521,9 @@ document.getElementById("check-workout").onclick = async () => {
     Snack (Healthy Snack)
 -------------------------------- */
 document.getElementById("check-snack").onclick = async () => {
-    // NOTE: Simplified logic for snack check-in to align with new data structure
+    // Requires profile to be loaded
+    if (!heroProfile) return; 
+
     const today = new Date().toDateString();
 
     const alreadyChecked = heroProfile.progress.find(p => p.date === today && p.action === 'snack');
@@ -512,7 +538,7 @@ document.getElementById("check-snack").onclick = async () => {
     heroProfile.snackCount = (heroProfile.snackCount || 0) + 1;
     heroProfile.points = (heroProfile.points || 0) + 5;
     
-    // Cheat Meal Reward Check (re-implementing original logic)
+    // Cheat Meal Reward Check
     if (heroProfile.snackCount % 5 === 0) {
         heroProfile.cheatMealsEarned = (heroProfile.cheatMealsEarned || 0) + 1;
         showMessage("Cheat Meal Unlocked! 🍕", `You earned a token! Total tokens: ${heroProfile.cheatMealsEarned}`);
@@ -527,6 +553,8 @@ document.getElementById("check-snack").onclick = async () => {
     Claim Cheat Meal
 -------------------------------- */
 document.getElementById("use-cheat-meal").onclick = async () => {
+    if (!heroProfile) return; 
+
     if ((heroProfile.cheatMealsEarned || 0) <= 0) {
         showMessage("No Tokens", "You need to earn a cheat meal token first!");
         return;
@@ -544,22 +572,20 @@ document.getElementById("use-cheat-meal").onclick = async () => {
 -------------------------------- */
 function renderUI() {
   if (!heroProfile) return;
-  // NOTE: Mapping the user's rendering targets to the existing, visible UI elements.
+  
   document.getElementById("welcome-message").innerText = `Welcome, ${heroProfile.heroName}!`;
   
-  // Stats (Mapping: Streak and Cheats)
   document.getElementById("current-streak").innerText = heroProfile.streak || 0;
   document.getElementById("total-points").innerText = heroProfile.points || 0;
   document.getElementById("current-level").innerText = Math.floor((heroProfile.points || 0) / 50) + 1;
   document.getElementById("cheat-meals-earned").innerText = heroProfile.cheatMealsEarned || 0;
   
-  // Update cheat meal text
   const snacksCount = heroProfile.snackCount || 0;
   const snacksNeeded = 5 - (snacksCount % 5);
   document.getElementById("snacks-to-next-reward").innerText = snacksNeeded === 5 ? 5 : snacksNeeded;
 
-  // Placeholder for badges (requires full badge logic re-integration)
-  document.getElementById("badges-container").innerHTML = "<p class='col-span-4 text-gray-500 text-center text-sm'>Badges require full logic re-implementation.</p>";
+  // Placeholder for Badges
+  document.getElementById("badges-container").innerHTML = "<p class='col-span-4 text-gray-500 text-center text-sm'>Badges logic requires re-implementation.</p>";
   
   renderRoadmap();
 }
@@ -575,7 +601,6 @@ function renderRoadmap() {
   const today = new Date().toDateString();
   const progressByDate = {};
   
-  // Aggregate progress for roadmap coloring (combining workout/snack for partial/full)
   (heroProfile.progress || []).forEach(p => {
     if (!progressByDate[p.date]) {
         progressByDate[p.date] = { workout: false, snack: false };
@@ -600,9 +625,9 @@ function renderRoadmap() {
     
     if (status) {
         if (status.workout && status.snack) {
-            stop.classList.add("completed"); // Green
+            stop.classList.add("completed"); 
         } else if (status.workout || status.snack) {
-            stop.classList.add("partial"); // Yellow
+            stop.classList.add("partial"); 
         }
     }
     
@@ -614,11 +639,9 @@ function renderRoadmap() {
     container.appendChild(box);
   }
 
-  // FIX: Smooth scroll logic using requestAnimationFrame 
   const scrollContainer = container.parentElement;
   if (scrollContainer) {
       requestAnimationFrame(() => {
-          // Scroll to the end of the content (where today is)
           scrollContainer.scroll({
               left: scrollContainer.scrollWidth,
               behavior: 'smooth'
@@ -626,46 +649,6 @@ function renderRoadmap() {
       });
   }
 }
-
-/* ------------------------------
-    Database Test Utility Functions
--------------------------------- */
-const output = document.getElementById("output");
-
-const log = (msg, isError = false) => {
-    const timestamp = new Date().toLocaleTimeString();
-    output.textContent += `[${timestamp}] ${isError ? '❌' : '✅'} ${msg}\n`;
-    // Autoscroll output window
-    output.scrollTop = output.scrollHeight;
-};
-
-document.getElementById("write").onclick = async () => {
-    log("Attempting to WRITE...");
-    try {
-        await setDoc(doc(db, PROFILE_COLLECTION, "test_user"), {
-            name: "Tester",
-            timestamp: Date.now()
-        });
-        log("WRITE SUCCESS");
-    } catch (err) {
-        log(`WRITE ERROR: ${err.message}`, true);
-    }
-};
-
-document.getElementById("read").onclick = async () => {
-    log("Attempting to READ...");
-    try {
-        const snap = await getDoc(doc(db, PROFILE_COLLECTION, "test_user"));
-        if (snap.exists()) {
-            log(`READ SUCCESS: Data Found. Timestamp: ${new Date(snap.data().timestamp).toLocaleString()}`);
-        } else {
-            log("READ SUCCESS: Document not found. (Database connection OK)");
-        }
-    } catch (err) {
-        log(`READ ERROR: ${err.message}`, true);
-    }
-};
-
 
 /* ------------------------------
     Start App
