@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Hero Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Lighter, modern background */
+            color: #1f2937;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15), 0 5px 15px -5px rgba(0, 0, 0, 0.08); /* Stronger, softer shadow */
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: transform 0.2s; /* Added subtle hover effect */
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .check-btn {
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .checked {
+            background-color: #10b981 !important; /* Teal for success */
+            color: white !important;
+            cursor: default !important;
+            box-shadow: none;
+        }
+        .not-checked {
+            background-color: #4f46e5; /* Indigo for primary action */
+            color: white;
+        }
+        .not-checked:hover {
+            opacity: 1;
+            background-color: #6366f1; /* Lighter Indigo on hover */
+            transform: translateY(-2px);
+        }
+        .badge-icon {
+            filter: grayscale(100%);
+            opacity: 0.4;
+            transition: all 0.3s ease-in-out;
+            cursor: default;
+        }
+        .badge-icon.earned {
+            filter: grayscale(0%);
+            opacity: 1;
+            transform: scale(1.1);
+            text-shadow: 0 0 8px rgba(255, 204, 0, 0.7);
+        }
+        .cheat-meal-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background-color: #f87171 !important;
+        }
+
+        /* Roadmap Styles */
+        .roadmap-track {
+            height: 4px;
+            background: linear-gradient(90deg, #d1d5db 0%, #a1a1aa 100%); /* Subtle gradient background for the path */
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            left: 0;
+            right: 0;
+            z-index: 0;
+        }
+        .day-stop-wrapper {
+            position: relative;
+            z-index: 10;
+            padding: 0 4px;
+        }
+        .day-stop {
+            min-width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            background-color: #e5e7eb; /* Gray for incomplete/future/missed */
+            transition: all 0.3s;
+            flex-shrink: 0;
+            border: 3px solid white; /* White border for lift effect */
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+        .day-stop.completed {
+            background-color: #0d9488; /* Teal for full completion */
+        }
+        .day-stop.partial {
+            background-color: #f59e0b; /* Amber/Orange for partial completion */
+        }
+        .day-stop.today {
+            border: 3px solid #3b82f6; /* Blue border for today */
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+        }
+        
+        /* Nickname Modal Styling */
+        .modal {
+            transition: all 0.3s ease-in-out;
+        }
+        .modal-box {
+            animation: slide-up 0.5s ease-out forwards;
+        }
+        @keyframes slide-up {
+            from { transform: translateY(50px) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen">
+
+    <div class="max-w-xl mx-auto">
+        <!-- Header: Plain text color, retaining bold font. Crowns are in their natural emoji color. -->
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-center mb-2 text-gray-800 drop-shadow-lg flex items-center justify-center">
+            <span class="text-yellow-500 mr-2">👑</span> Habit Hero <span class="text-yellow-500 ml-2">👑</span>
+        </h1>
+        <p id="display-name" class="text-center text-lg font-bold text-indigo-600 mb-6">Hello, Hero!</p>
+        <p class="text-center text-gray-500 mb-8">Gamifying your consistency, one goal at a time.</p>
+
+        <!-- Stat Cards updated with color coding and stronger shadows -->
+        <div id="stats-container" class="grid grid-cols-3 gap-4 mb-8">
+            <div class="card text-center bg-yellow-50 shadow-md p-3">
+                <p id="total-points" class="text-3xl font-extrabold text-yellow-600">0</p>
+                <p class="text-xs font-semibold uppercase text-gray-600 mt-1">Points</p>
+            </div>
+            <div class="card text-center bg-indigo-50 shadow-md p-3">
+                <p id="current-level" class="text-3xl font-extrabold text-indigo-600">1</p>
+                <p class="text-xs font-semibold uppercase text-gray-600 mt-1">Level</p>
+            </div>
+            <div class="card text-center bg-red-50 shadow-md p-3">
+                <p id="current-streak" class="text-3xl font-extrabold text-red-600">0</p>
+                <p class="text-xs font-semibold uppercase text-gray-600 mt-1">Streak 🔥</p>
+            </div>
+        </div>
+
+        <!-- Journey Roadmap (Structural update for the track) -->
+        <div class="card">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                <span class="mr-2 text-teal-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14V4a2 2 0 0 0-4 0v10a2 2 0 0 1-2 2v6l2-1 2 1 2-1 2 1V8a2 2 0 0 0-2-2z"/></svg>
+                </span>
+                Your Habit Journey 🗺️
+            </h2>
+            <div class="overflow-x-scroll pb-4 relative">
+                <!-- Roadmap Track Background -->
+                <div class="roadmap-track absolute"></div> 
+                <div id="roadmap-container" class="flex items-center space-x-2 relative z-10">
+                    <!-- Daily stops will be inserted here by JavaScript -->
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-3 text-center">A visual map of your year's consistency.</p>
+        </div>
+        
+        <!-- Rewards Section updated -->
+        <div class="card bg-purple-100 border-purple-300 border shadow-inner">
+            <h2 class="text-2xl font-bold mb-4 text-purple-700 flex items-center">
+                <span class="mr-2 text-purple-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s2-4 5-4 5 4 5 4 2-4 5-4 5 4 5 4M4 17h16"/></svg>
+                </span>
+                Cheat Meal Rewards 🍕
+            </h2>
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-700 text-lg font-semibold">Earned Tokens:</p>
+                    <p id="cheat-meals-earned" class="text-5xl font-extrabold text-purple-600 mt-1">0</p>
+                    <p class="text-xs text-gray-500 mt-2">Next token in <span id="snacks-to-next-reward">5</span> snacks.</p>
+                </div>
+                <button id="use-cheat-meal" disabled
+                        class="cheat-meal-btn px-6 py-3 bg-red-600 text-white font-bold rounded-full text-base hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-400 shadow-md transition duration-150 ease-in-out">
+                    Claim Reward!
+                </button>
+            </div>
+        </div>
+
+
+        <!-- Badges Section updated with better structure -->
+        <div class="card">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 flex items-center">
+                <span class="mr-2 text-yellow-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15 6L19 7L16 11L17 15L12 13L7 15L8 11L5 7L9 6L12 2z"/></svg>
+                </span>
+                Achievements 🏅
+            </h2>
+            <div id="badges-container" class="grid grid-cols-3 sm:grid-cols-4 gap-4 p-2 justify-items-center">
+                <!-- Badges will be rendered here by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Daily Tasks - clearer contrast and focus -->
+        <div class="card">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Today's Focus</h2>
+            <div class="space-y-4">
+                <!-- HIIT Workout -->
+                <div class="flex items-center justify-between p-4 bg-white rounded-xl border-2 border-indigo-100 transition duration-300 hover:border-indigo-400">
+                    <div class="flex items-center">
+                        <span class="text-3xl mr-3 text-indigo-600">💪</span>
+                        <div>
+                            <p class="font-semibold text-lg">HIIT Workout</p>
+                            <p class="text-sm text-gray-500">+10 Points</p>
+                        </div>
+                    </div>
+                    <button id="check-workout"
+                            class="check-btn not-checked px-4 py-2 font-bold rounded-full text-sm">
+                        Check In
+                    </button>
+                </div>
+
+                <!-- Healthy Snack -->
+                <div class="flex items-center justify-between p-4 bg-white rounded-xl border-2 border-indigo-100 transition duration-300 hover:border-indigo-400">
+                    <div class="flex items-center">
+                        <span class="text-3xl mr-3 text-teal-600">🍎</span>
+                        <div>
+                            <p class="font-semibold text-lg">Healthy Snack</p>
+                            <p class="text-sm text-gray-500">+5 Points</p>
+                        </div>
+                    </div>
+                    <button id="check-snack"
+                            class="check-btn not-checked px-4 py-2 font-bold rounded-full text-sm">
+                        Check In
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Messages / Pop-up (Modernized) -->
+        <div id="message-container" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-60 hidden z-50 justify-center items-center p-4">
+            <div id="message-box" class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full transform scale-95 opacity-0 transition-all duration-300">
+                <h3 id="message-title" class="text-3xl font-extrabold mb-3 text-teal-600">Well Done!</h3>
+                <p id="message-text" class="text-gray-700 mb-6"></p>
+                <button id="close-message" 
+                        class="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">
+                    Got it!
+                </button>
+            </div>
+        </div>
+        
+        <!-- HERO NAME/LOGIN MODAL -->
+        <div id="hero-name-modal" class="modal fixed top-0 left-0 w-full h-full bg-black bg-opacity-80 hidden z-50 justify-center items-center p-4">
+            <div class="modal-box bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full">
+                <h3 class="text-3xl font-extrabold mb-3 text-indigo-600 flex items-center">
+                    Welcome, New Hero! 
+                    <span class="ml-2 text-yellow-500">👑</span>
+                </h3>
+                <p class="text-gray-700 mb-6">Enter a unique Hero Name to save and track your personal progress. This name identifies you when you return.</p>
+                
+                <input type="text" id="hero-name-input" 
+                       placeholder="e.g., TheHabitMaster"
+                       maxlength="20"
+                       class="w-full p-3 mb-4 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-indigo-500 outline-none transition duration-150">
+                
+                <button id="set-hero-name" disabled
+                        class="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg opacity-50 cursor-not-allowed transition duration-150">
+                    Start My Journey
+                </button>
+            </div>
+        </div>
+
+
+        <!-- User/Auth Status -->
+        <div class="mt-4 text-center text-xs text-gray-400">
+            <p id="auth-status">Initializing...</p>
+        </div>
+    </div>
+
+    <!-- Firebase Imports and Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL VARIABLES ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let userRef = null;
+        let userData = null;
+
+        const USER_STATS_PATH = `artifacts/${appId}/users`;
+        const STATS_DOC_ID = 'user_stats';
+        const SNACK_REWARD_THRESHOLD = 5;
+
+        const POINTS = {
+            WORKOUT: 10,
+            SNACK: 5
+        };
+
+        const BADGES = {
+            'starter_star': {
+                name: "Starter Star",
+                description: "Earn 50 Total Points.",
+                criteria: (data) => data.points >= 50,
+                icon: '⭐️'
+            },
+            'hiit_master': {
+                name: "HIIT Master",
+                description: "Complete 10 HIIT Workouts.",
+                criteria: (data) => data.workoutCount >= 10,
+                icon: '🏋️'
+            },
+            'clean_eater': {
+                name: "Clean Eater",
+                description: "Log 10 Healthy Snacks.",
+                criteria: (data) => data.snackCount >= 10,
+                icon: '🥗'
+            },
+            'baby_streak': {
+                name: "Baby Streak",
+                description: "Hit a 3-day completion streak.",
+                criteria: (data) => data.currentStreak >= 3,
+                icon: '🥉'
+            },
+            'weekly_warrior': {
+                name: "Weekly Warrior",
+                description: "Hit a 7-day completion streak.",
+                criteria: (data) => data.currentStreak >= 7,
+                icon: '🥈'
+            },
+            'monthly_master': {
+                name: "Monthly Master",
+                description: "Hit a 30-day completion streak.",
+                criteria: (data) => data.currentStreak >= 30,
+                icon: '🥇'
+            },
+            // --- NEW BADGES ---
+            'level_climber': {
+                name: "Level Climber",
+                description: "Reach Level 5 (200 Total Points).",
+                criteria: (data) => getLevel(data.points) >= 5,
+                icon: '⬆️'
+            },
+            'marathoner': {
+                name: "Marathoner",
+                description: "Complete 50 HIIT Workouts.",
+                criteria: (data) => data.workoutCount >= 50,
+                icon: '🏃‍♂️'
+            },
+            'food_journaler': {
+                name: "Food Journaler",
+                description: "Log 100 Healthy Snacks.",
+                criteria: (data) => data.snackCount >= 100,
+                icon: '📚'
+            }
+        };
+
+        // --- UTILITY FUNCTIONS ---
+        function getTodayDateString() {
+            return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        }
+
+        function isSameDay(date1, date2) {
+            return date1.slice(0, 10) === date2.slice(0, 10);
+        }
+
+        function getDatesInRange(start, end) {
+            const dateArray = [];
+            let currentDate = new Date(start);
+            while (currentDate <= end) {
+                // Ensure date formatting is clean (avoid timezone offsets changing the day)
+                dateArray.push(currentDate.toISOString().slice(0, 10));
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            return dateArray;
+        }
+
+        // --- UI FUNCTIONS ---
+        function showMessage(title, message) {
+            const container = document.getElementById('message-container');
+            const box = document.getElementById('message-box');
+            document.getElementById('message-title').textContent = title;
+            document.getElementById('message-text').textContent = message;
+            container.classList.remove('hidden');
+            container.classList.add('flex');
+            
+            // Trigger animation
+            setTimeout(() => {
+                box.classList.remove('scale-95', 'opacity-0');
+                box.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function hideMessage() {
+            const container = document.getElementById('message-container');
+            const box = document.getElementById('message-box');
+            
+            box.classList.remove('scale-100', 'opacity-100');
+            box.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                container.classList.add('hidden');
+                container.classList.remove('flex');
+            }, 300); // Wait for transition to finish
+        }
+        
+        // --- HERO NAME MODAL FUNCTIONS ---
+        function showHeroNameModal() {
+            const modal = document.getElementById('hero-name-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('set-hero-name').disabled = true;
+            document.getElementById('hero-name-input').value = '';
+            document.getElementById('hero-name-input').focus();
+        }
+
+        function hideHeroNameModal() {
+            const modal = document.getElementById('hero-name-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function setHeroName() {
+            const input = document.getElementById('hero-name-input');
+            const heroName = input.value.trim();
+
+            if (!heroName) return;
+
+            userData.heroName = heroName;
+            
+            try {
+                // Update Firestore with the new Hero Name
+                await setDoc(userRef, userData, { merge: true });
+                console.log("Hero Name set:", heroName);
+                
+                // Update UI and hide modal
+                updateUI();
+                hideHeroNameModal();
+                showMessage("Welcome!", `Welcome to your journey, **${heroName}**! Your progress will now be tracked here.`);
+
+            } catch (error) {
+                console.error("Error setting Hero Name:", error);
+                showMessage("Error", "Could not save your Hero Name. Please try again.");
+            }
+        }
+        // --- END HERO NAME MODAL FUNCTIONS ---
+
+
+        function getLevel(points) {
+            // Simple level calculation: Level 1 starts at 0, Level N starts at N * 50 points
+            if (points < 50) return 1;
+            return Math.floor(points / 50) + 1;
+        }
+
+        function renderBadges() {
+            const container = document.getElementById('badges-container');
+            container.innerHTML = ''; // Clear previous badges
+
+            if (!userData || !userData.earnedBadges) return;
+
+            Object.keys(BADGES).forEach(key => {
+                const badge = BADGES[key];
+                const isEarned = userData.earnedBadges[key] === true;
+
+                const badgeHtml = `
+                    <div class="text-center p-2 rounded-lg" title="${badge.description}">
+                        <span class="text-5xl badge-icon ${isEarned ? 'earned' : ''}">${badge.icon}</span>
+                        <p class="text-xs font-semibold mt-1 ${isEarned ? 'text-teal-700' : 'text-gray-500'}">${badge.name}</p>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', badgeHtml);
+            });
+        }
+
+        function renderRoadmap() {
+            const container = document.getElementById('roadmap-container');
+            container.innerHTML = '';
+
+            if (!userData) return;
+
+            const today = new Date();
+            const todayStr = getTodayDateString();
+
+            // Start 30 days ago for history, end 335 days from now (to cover a full year visualization)
+            const startDate = new Date(today);
+            startDate.setDate(today.getDate() - 30); // 30 days of history
+
+            const endDate = new Date(today);
+            endDate.setDate(today.getDate() + 335); // Visualizing ~1 year total (~365 days)
+
+            const dates = getDatesInRange(startDate, endDate);
+
+            dates.forEach(dateStr => {
+                const dailyStatus = userData.dailyStatus[dateStr];
+                
+                const isCompleted = dailyStatus && dailyStatus.workout && dailyStatus.snack;
+                const isPartial = dailyStatus && (dailyStatus.workout || dailyStatus.snack) && !isCompleted;
+                const isToday = dateStr === todayStr;
+
+                let title = dateStr;
+                let statusClass = '';
+
+                if (isCompleted) {
+                    title += " - Fully Completed! 🎉";
+                    statusClass = 'completed';
+                } else if (isPartial) {
+                    title += " - Partial Progress 💪🍎";
+                    statusClass = 'partial';
+                } else if (isToday) {
+                    title += " - Today's Goal";
+                    statusClass = 'today';
+                } else if (dateStr < todayStr) {
+                    // Only mark as missed if date is in the past AND not completed
+                    title += " - Missed Goal 🙁";
+                    // statusClass defaults to light gray (e5e7eb)
+                } else {
+                    title += " - Future Goal";
+                    // statusClass defaults to light gray (e5e7eb)
+                }
+                
+                // Wrap the day-stop in a div for spacing/alignment control above the track
+                const stopWrapper = document.createElement('div');
+                stopWrapper.className = 'day-stop-wrapper'; 
+
+                const stop = document.createElement('div');
+                stop.className = `day-stop ${statusClass}`;
+                stop.title = title;
+                
+                stopWrapper.appendChild(stop);
+                container.appendChild(stopWrapper);
+            });
+
+            // Scroll to today's date
+            if (dates.length > 0) {
+                const todayIndex = dates.findIndex(d => d === todayStr);
+                if (todayIndex !== -1) {
+                    // Use a slight delay to ensure rendering is complete
+                    setTimeout(() => {
+                        const stopElement = container.children[todayIndex];
+                        if (stopElement) {
+                            // Calculate scroll position to center "today"
+                            const scrollPosition = stopElement.offsetLeft - (container.parentElement.offsetWidth / 2) + (stopElement.offsetWidth / 2);
+                            container.parentElement.scrollLeft = scrollPosition;
+                        }
+                    }, 100);
+                }
+            }
+        }
+
+
+        function updateUI() {
+            if (!userData) return;
+
+            const today = getTodayDateString();
+            const daily = userData.dailyStatus[today] || { workout: false, snack: false };
+            
+            // Display Hero Name/User Identity
+            const displayName = userData.heroName || "Hero";
+            document.getElementById('display-name').textContent = `Welcome back, ${displayName}!`;
+
+            document.getElementById('total-points').textContent = userData.points;
+            document.getElementById('current-level').textContent = getLevel(userData.points);
+            document.getElementById('current-streak').textContent = userData.currentStreak;
+            
+            // Update Cheat Meal Tracker
+            document.getElementById('cheat-meals-earned').textContent = userData.cheatMealsEarned;
+            
+            // Calculate snacks needed for NEXT reward
+            const snacksNeeded = SNACK_REWARD_THRESHOLD - (userData.snackCount % SNACK_REWARD_THRESHOLD);
+            document.getElementById('snacks-to-next-reward').textContent = snacksNeeded === SNACK_REWARD_THRESHOLD ? SNACK_REWARD_THRESHOLD : snacksNeeded;
+
+            const useCheatMealBtn = document.getElementById('use-cheat-meal');
+            if (userData.cheatMealsEarned > 0) {
+                useCheatMealBtn.disabled = false;
+                useCheatMealBtn.classList.remove('bg-red-500');
+                useCheatMealBtn.classList.add('bg-red-600', 'shadow-lg');
+            } else {
+                useCheatMealBtn.disabled = true;
+                useCheatMealBtn.classList.remove('bg-red-600', 'shadow-lg');
+                useCheatMealBtn.classList.add('bg-red-500');
+            }
+
+            renderBadges();
+            renderRoadmap(); // <-- Renders the roadmap visualization
+
+            const workoutBtn = document.getElementById('check-workout');
+            const snackBtn = document.getElementById('check-snack');
+
+            // Update Workout Button State
+            if (daily.workout) {
+                workoutBtn.classList.add('checked');
+                workoutBtn.classList.remove('not-checked');
+                workoutBtn.textContent = 'Completed!';
+                workoutBtn.disabled = true;
+            } else {
+                workoutBtn.classList.remove('checked');
+                workoutBtn.classList.add('not-checked');
+                workoutBtn.textContent = 'Check In';
+                workoutBtn.disabled = false;
+            }
+
+            // Update Snack Button State
+            if (daily.snack) {
+                snackBtn.classList.add('checked');
+                snackBtn.classList.remove('not-checked');
+                snackBtn.textContent = 'Completed!';
+                snackBtn.disabled = true;
+            } else {
+                snackBtn.classList.remove('checked');
+                snackBtn.classList.add('not-checked');
+                snackBtn.textContent = 'Check In';
+                snackBtn.disabled = false;
+            }
+        }
+
+        // --- FIREBASE/CORE LOGIC ---
+
+        function getInitialUserData() {
+            const today = getTodayDateString();
+            return {
+                points: 0,
+                currentStreak: 0,
+                lastCompletionDate: today,
+                workoutCount: 0,
+                snackCount: 0,
+                cheatMealsEarned: 0,
+                earnedBadges: {},
+                dailyStatus: {},
+                userId: userId,
+                heroName: null // New field for user identity
+            };
+        }
+
+        async function fetchUserData() {
+            try {
+                const docSnap = await getDoc(userRef);
+
+                if (docSnap.exists()) {
+                    // Load existing data
+                    userData = docSnap.data();
+                    // Ensure new fields exist for existing users
+                    userData.workoutCount = userData.workoutCount || 0;
+                    userData.snackCount = userData.snackCount || 0;
+                    userData.cheatMealsEarned = userData.cheatMealsEarned || 0;
+                    userData.earnedBadges = userData.earnedBadges || {};
+                    userData.dailyStatus = userData.dailyStatus || {};
+                    userData.heroName = userData.heroName || null; // Initialize heroName
+                    console.log("Existing user data loaded:", userData);
+                } else {
+                    // Initialize new data
+                    userData = getInitialUserData();
+                    await setDoc(userRef, userData);
+                    console.log("New user profile created.");
+                }
+                
+                // If user doesn't have a Hero Name, prompt them to set one (our 'login' experience)
+                if (!userData.heroName) {
+                    showHeroNameModal();
+                }
+
+                checkAndResetStreak();
+                checkForBadges(); // Check badges on load
+                updateUI();
+            } catch (error) {
+                console.error("Error fetching or initializing user data:", error);
+            }
+        }
+
+        function checkAndResetStreak() {
+            const today = new Date();
+            const todayStr = getTodayDateString();
+            const lastDate = userData.lastCompletionDate;
+
+            const yesterday = new Date(today);
+            yesterday.setDate(today.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+            // 1. Initialize today's status if missing
+            if (!userData.dailyStatus[todayStr]) {
+                userData.dailyStatus[todayStr] = { workout: false, snack: false, pointsEarned: 0 };
+            }
+
+            // 2. Check for streak break
+            if (lastDate < yesterdayStr) {
+                if (userData.currentStreak > 0) {
+                    console.log(`Streak broken. Last check-in was ${lastDate}.`);
+                    showMessage("Streak Broken 😔", `Your streak of ${userData.currentStreak} days ended. Don't worry, start a new one today!`);
+                    userData.currentStreak = 0;
+                }
+            }
+        }
+
+        function checkForBadges() {
+            let newBadgesEarned = false;
+
+            Object.keys(BADGES).forEach(key => {
+                const badge = BADGES[key];
+                // Check if the badge is NOT already earned AND the criteria is met
+                if (!userData.earnedBadges[key] && badge.criteria(userData)) {
+                    userData.earnedBadges[key] = true;
+                    newBadgesEarned = true;
+                    showMessage("Badge Unlocked! 🏅", `You earned the **${badge.name}** badge! Keep up the amazing work!`);
+                    console.log(`Badge unlocked: ${badge.name}`);
+                }
+            });
+            return newBadgesEarned;
+        }
+
+        async function useCheatMeal() {
+            if (userData.cheatMealsEarned > 0) {
+                userData.cheatMealsEarned--;
+                try {
+                    await setDoc(userRef, userData);
+                    showMessage("Reward Claimed! 😋", "Go enjoy your cheat meal! Your token has been used.");
+                    updateUI();
+                } catch (error) {
+                    console.error("Error using cheat meal:", error);
+                    userData.cheatMealsEarned++; // Rollback on failure
+                    showMessage("Error", "Could not save token usage. Please try again.");
+                }
+            } else {
+                showMessage("No Tokens", "You need to earn a cheat meal token first! Log more healthy snacks.");
+            }
+        }
+
+        async function completeTask(task) {
+            if (!userData || !userId) {
+                showMessage("Hold On!", "Authentication is still initializing. Please wait a moment.");
+                return;
+            }
+            if (!userData.heroName) {
+                 showMessage("First Step!", "Please set your Hero Name first to start tracking your progress!");
+                 showHeroNameModal();
+                 return;
+            }
+
+            const today = getTodayDateString();
+            const pointsGained = POINTS[task];
+            const taskKey = task.toLowerCase(); // 'workout' or 'snack'
+
+            // Ensure today's status object exists
+            if (!userData.dailyStatus[today]) {
+                userData.dailyStatus[today] = { workout: false, snack: false, pointsEarned: 0 };
+            }
+
+            // Check if already completed
+            if (userData.dailyStatus[today][taskKey]) {
+                showMessage("Already Done!", `You've already completed the ${task} task today. Check back tomorrow!`);
+                return;
+            }
+
+            // 1. Update points, status, and new task counts locally
+            userData.points += pointsGained;
+            userData.dailyStatus[today][taskKey] = true;
+            userData.dailyStatus[today].pointsEarned += pointsGained;
+
+            if (taskKey === 'workout') {
+                userData.workoutCount++;
+            } else if (taskKey === 'snack') {
+                userData.snackCount++;
+                
+                // Check for Cheat Meal Reward (every 5 snacks)
+                if (userData.snackCount > 0 && userData.snackCount % SNACK_REWARD_THRESHOLD === 0) {
+                    userData.cheatMealsEarned++;
+                    showMessage("Cheat Meal Unlocked! 🍕", `Congratulations! You've logged ${userData.snackCount} healthy snacks and earned a free pass for a cheat meal! Total tokens: ${userData.cheatMealsEarned}`);
+                }
+            }
+
+            // 2. Check for Streak Update
+            const isAllCompleted = userData.dailyStatus[today].workout && userData.dailyStatus[today].snack;
+
+            if (isAllCompleted) {
+                const lastDate = userData.lastCompletionDate;
+                const todayObj = new Date(today);
+                const lastDateObj = new Date(lastDate);
+
+                if (lastDateObj.getTime() === todayObj.getTime() - (24 * 60 * 60 * 1000)) {
+                    userData.currentStreak++;
+                    showMessage("Streak Progress! 🔥", `You hit all your goals! Your streak is now ${userData.currentStreak} days!`);
+                } else if (!isSameDay(lastDate, today)) {
+                    if (userData.currentStreak === 0) {
+                        userData.currentStreak = 1;
+                        showMessage("Streak Started! 🎉", `You hit all your goals and started a 1-day streak!`);
+                    }
+                }
+                
+                userData.lastCompletionDate = today;
+            } else {
+                 showMessage("Points Gained!", `You earned ${pointsGained} points! Only one more task left to maintain your streak!`);
+            }
+            
+            // 3. Check for badges (now includes streak badges)
+            checkForBadges();
+
+            // 4. Update the database
+            try {
+                await setDoc(userRef, userData);
+                console.log(`Task ${task} completed. Points: ${userData.points}. Streak: ${userData.currentStreak}`);
+                updateUI();
+            } catch (error) {
+                console.error("Error updating user data:", error);
+            }
+        }
+
+        // --- INITIALIZATION ---
+        async function initializeFirebase() {
+            try {
+                if (Object.keys(firebaseConfig).length === 0) {
+                    console.warn("Firebase config is missing. App cannot persist data.");
+                    document.getElementById('auth-status').textContent = 'Error: Firebase config missing. Data will not save.';
+                    return;
+                }
+
+                setLogLevel('error');
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // 1. Handle Authentication
+                let authPromise;
+                if (initialAuthToken) {
+                    authPromise = signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    authPromise = signInAnonymously(auth);
+                }
+                await authPromise;
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        // Use the correct path structure: /artifacts/{appId}/users/{userId}/{collectionName}/{documentId}
+                        userRef = doc(db, `${USER_STATS_PATH}/${userId}/stats_collection/${STATS_DOC_ID}`);
+                        document.getElementById('auth-status').textContent = `User ID: ${userId} | Status: Ready`;
+                        fetchUserData();
+                    } else {
+                        document.getElementById('auth-status').textContent = 'Authentication failed.';
+                    }
+                });
+
+                // 2. Attach Event Listeners
+                document.getElementById('check-workout').addEventListener('click', () => completeTask('WORKOUT'));
+                document.getElementById('check-snack').addEventListener('click', () => completeTask('SNACK'));
+                document.getElementById('use-cheat-meal').addEventListener('click', useCheatMeal); 
+                document.getElementById('close-message').addEventListener('click', hideMessage);
+                
+                // Hero Name Modal Listeners
+                document.getElementById('set-hero-name').addEventListener('click', setHeroName);
+                document.getElementById('hero-name-input').addEventListener('input', (e) => {
+                    const button = document.getElementById('set-hero-name');
+                    if (e.target.value.trim().length > 0) {
+                        button.disabled = false;
+                        button.classList.remove('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        button.disabled = true;
+                        button.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                });
+
+
+            } catch (error) {
+                console.error("Firebase initialization error:", error);
+                document.getElementById('auth-status').textContent = `Initialization Error.`;
+            }
+        }
+
+        initializeFirebase();
+    </script>
+</body>
+</html>
