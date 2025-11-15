@@ -426,22 +426,25 @@
             const heroName = input.value.trim();
 
             if (!heroName) return;
-
-            userData.heroName = heroName;
             
-            try {
-                // Update Firestore with the new Hero Name
-                await setDoc(userRef, userData, { merge: true });
-                console.log("Hero Name set:", heroName);
-                
-                // Update UI and hide modal
-                updateUI();
-                hideHeroNameModal();
-                showMessage("Welcome!", `Welcome to your journey, **${heroName}**! Your progress will now be tracked here.`);
+            // 1. Update local data and UI immediately (to avoid freeze/delay)
+            userData.heroName = heroName;
+            hideHeroNameModal();
+            updateUI();
+            showMessage("Welcome!", `Welcome to your journey, **${heroName}**! Your progress will now be tracked here.`);
 
-            } catch (error) {
-                console.error("Error setting Hero Name:", error);
-                showMessage("Error", "Could not save your Hero Name. Please try again.");
+
+            // 2. Asynchronously attempt to save to Firestore (only if connection is valid)
+            if (userRef) {
+                try {
+                    await setDoc(userRef, { heroName: heroName }, { merge: true });
+                    console.log("Hero Name set and saved to Firestore:", heroName);
+                } catch (error) {
+                    console.error("Error saving Hero Name to Firestore:", error);
+                    // Since the local data is already updated, we just log the failure.
+                }
+            } else {
+                 console.warn("Hero Name set locally. Firestore saving skipped (no userRef).");
             }
         }
         // --- END HERO NAME MODAL FUNCTIONS ---
@@ -634,9 +637,12 @@
 
         async function fetchUserData() {
             try {
-                const docSnap = await getDoc(userRef);
+                let docSnap = null;
+                if (userRef) {
+                    docSnap = await getDoc(userRef);
+                }
 
-                if (docSnap.exists()) {
+                if (docSnap && docSnap.exists()) {
                     // Load existing data
                     userData = docSnap.data();
                     // Ensure new fields exist for existing users
@@ -650,8 +656,12 @@
                 } else {
                     // Initialize new data
                     userData = getInitialUserData();
-                    await setDoc(userRef, userData);
-                    console.log("New user profile created.");
+                    if (userRef) {
+                        await setDoc(userRef, userData);
+                        console.log("New user profile created and saved.");
+                    } else {
+                        console.warn("Running in local mode. New user profile created locally only.");
+                    }
                 }
                 
                 // If user doesn't have a Hero Name, prompt them to set one (our 'login' experience)
@@ -709,16 +719,20 @@
         }
 
         async function useCheatMeal() {
+            if (!userData.heroName) { showHeroNameModal(); return; }
+            
             if (userData.cheatMealsEarned > 0) {
                 userData.cheatMealsEarned--;
-                try {
-                    await setDoc(userRef, userData);
-                    showMessage("Reward Claimed! 😋", "Go enjoy your cheat meal! Your token has been used.");
-                    updateUI();
-                } catch (error) {
-                    console.error("Error using cheat meal:", error);
-                    userData.cheatMealsEarned++; // Rollback on failure
-                    showMessage("Error", "Could not save token usage. Please try again.");
+                showMessage("Reward Claimed! 😋", "Go enjoy your cheat meal! Your token has been used.");
+                updateUI(); // Immediate UI update
+
+                if (userRef) {
+                    try {
+                        await setDoc(userRef, { cheatMealsEarned: userData.cheatMealsEarned }, { merge: true });
+                    } catch (error) {
+                        console.error("Error saving cheat meal usage:", error);
+                        // Optional: show error message or implement rollback
+                    }
                 }
             } else {
                 showMessage("No Tokens", "You need to earn a cheat meal token first! Log more healthy snacks.");
@@ -795,12 +809,15 @@
             checkForBadges();
 
             // 4. Update the database
-            try {
-                await setDoc(userRef, userData);
-                console.log(`Task ${task} completed. Points: ${userData.points}. Streak: ${userData.currentStreak}`);
-                updateUI();
-            } catch (error) {
-                console.error("Error updating user data:", error);
+            updateUI(); // Update UI immediately
+
+            if (userRef) {
+                 try {
+                    await setDoc(userRef, userData);
+                    console.log(`Task ${task} completed. Points: ${userData.points}. Streak: ${userData.currentStreak}`);
+                } catch (error) {
+                    console.error("Error updating user data:", error);
+                }
             }
         }
 
@@ -829,11 +846,12 @@
             if (Object.keys(firebaseConfig).length === 0) {
                 console.warn("Firebase config is missing. App cannot persist data.");
                 document.getElementById('auth-status').textContent = 'Warning: Firebase config missing. Data will not save permanently.';
-                // If config is missing, we must manually set dummy data so the app can run locally without errors.
+                
+                // If config is missing (local mode), manually set dummy data for local functionality
                 userId = 'local_dummy_user';
-                userRef = null; // Don't allow Firestore operations
+                userRef = null; 
                 userData = getInitialUserData();
-                updateUI(); // Render the UI with dummy data and prompt for hero name
+                updateUI();
                 if (!userData.heroName) { showHeroNameModal(); }
                 return;
             }
@@ -856,7 +874,7 @@
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
-                        // Use the correct path structure: /artifacts/{appId}/users/{userId}/{collectionName}/{documentId}
+                        // Use the correct path structure
                         userRef = doc(db, `${USER_STATS_PATH}/${userId}/stats_collection/${STATS_DOC_ID}`);
                         document.getElementById('auth-status').textContent = `User ID: ${userId} | Status: Ready`;
                         fetchUserData();
