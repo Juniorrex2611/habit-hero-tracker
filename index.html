@@ -65,7 +65,7 @@
             height: 4px;
             background: linear-gradient(90deg, #d1d5db 0%, #a1a1aa 100%); /* Subtle gradient background for the path */
             position: absolute;
-            top: 50%;
+            top: 55%; /* Adjusted for better centering */
             transform: translateY(-50%);
             left: 0;
             right: 0;
@@ -85,6 +85,7 @@
             flex-shrink: 0;
             border: 3px solid white; /* White border for lift effect */
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            cursor: pointer; /* Indicates clickability */
         }
         .day-stop.completed {
             background-color: #0d9488; /* Teal for full completion */
@@ -97,8 +98,8 @@
             transform: scale(1.2);
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
         }
-        /* Modal for Hero Name */
-        #hero-name-modal {
+        /* Modal General Styles */
+        .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
@@ -110,11 +111,39 @@
             justify-content: center;
             align-items: center;
         }
-        #hero-name-box {
+        .modal-content {
             background-color: white;
             padding: 2rem;
             border-radius: 1rem;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            max-width: 90%;
+            width: 400px;
+        }
+        .toggle-switch {
+            width: 44px;
+            height: 24px;
+            background-color: #ccc;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.4s;
+        }
+        .toggle-switch.checked {
+            background-color: #10b981;
+        }
+        .toggle-switch::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: 0.4s;
+        }
+        .toggle-switch.checked::after {
+            transform: translateX(20px);
         }
     </style>
 </head>
@@ -145,6 +174,18 @@
             </div>
         </div>
 
+        <!-- PROGRESS BAR SECTION -->
+        <div class="card p-3 mb-8">
+            <div class="flex justify-between items-center mb-1">
+                <p class="text-sm font-semibold text-gray-700">Progress to Next Level (Level <span id="next-level-display">2</span>)</p>
+                <p class="text-xs font-medium text-indigo-600"><span id="points-current-in-level">0</span> / 50 Pts</p>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div id="level-progress-bar" class="h-2.5 rounded-full bg-indigo-500" style="width: 0%"></div>
+            </div>
+        </div>
+        <!-- END PROGRESS BAR SECTION -->
+
         
         <div class="card">
             <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
@@ -157,10 +198,10 @@
                 
                 <div class="roadmap-track absolute"></div> 
                 <div id="roadmap-container" class="flex items-center space-x-2 relative z-10">
-                    
+                    <!-- Roadmap items generated here -->
                 </div>
             </div>
-            <p class="text-xs text-gray-500 mt-3 text-center">A visual map of your year's consistency.</p>
+            <p class="text-xs text-gray-500 mt-3 text-center">Click a dot to edit a past day's status.</p>
         </div>
         
         
@@ -207,7 +248,7 @@
                     <div class="flex items-center">
                         <span class="text-3xl mr-3 text-indigo-600">💪</span>
                         <div>
-                            <p class="font-semibold text-lg">HIIT Workout</p>
+                            <p class="font-semibold text-lg">Workout</p>
                             <p class="text-sm text-gray-500">+10 Points</p>
                         </div>
                     </div>
@@ -222,7 +263,7 @@
                     <div class="flex items-center">
                         <span class="text-3xl mr-3 text-teal-600">🍎</span>
                         <div>
-                            <p class="font-semibold text-lg">Healthy Snack</p>
+                            <p class="font-semibold text-lg">Healthy Food Choices</p>
                             <p class="text-sm text-gray-500">+5 Points</p>
                         </div>
                     </div>
@@ -235,8 +276,8 @@
         </div>
 
         
-        <div id="message-container" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-60 hidden z-50 justify-center items-center p-4">
-            <div id="message-box" class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full transform scale-95 opacity-0 transition-all duration-300">
+        <div id="message-container" class="modal-overlay hidden">
+            <div id="message-box" class="modal-content max-w-sm w-full transform scale-95 opacity-0 transition-all duration-300">
                 <h3 id="message-title" class="text-3xl font-extrabold mb-3 text-teal-600">Well Done!</h3>
                 <p id="message-text" class="text-gray-700 mb-6"></p>
                 <button id="close-message"
@@ -247,12 +288,12 @@
         </div>
 
         
-        <div id="hero-name-modal" class="hidden">
-            <div id="hero-name-box" class="max-w-md w-full text-center">
+        <div id="hero-name-modal" class="modal-overlay hidden">
+            <div id="hero-name-box" class="modal-content max-w-md w-full text-center">
                 <h2 class="text-3xl font-extrabold text-indigo-600 mb-2">Welcome, New Hero!</h2>
                 <p class="text-gray-600 mb-6">Please enter your unique Hero Name to save your progress permanently.</p>
                 
-                <input type="text" id="hero-name-input" placeholder="e.g., RuariFit24"
+                <input type="text" id="hero-name-input" placeholder="e.g., John321"
                        class="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2">
                 
                 <p class="text-sm text-gray-600 mb-6">
@@ -265,6 +306,39 @@
                 </button>
             </div>
         </div>
+
+        <!-- NEW HISTORY EDIT MODAL -->
+        <div id="history-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800" id="history-modal-title">Edit History</h3>
+                <p class="text-sm text-gray-500 mb-4" id="history-modal-date"></p>
+
+                <div class="space-y-4">
+                    <!-- Workout Toggle -->
+                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border">
+                        <label class="text-md font-semibold text-gray-700">💪 Workout</label>
+                        <div id="history-toggle-workout" class="toggle-switch"></div>
+                    </div>
+                    <!-- Snack Toggle -->
+                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border">
+                        <label class="text-md font-semibold text-gray-700">🍎 Healthy Food Choices</label>
+                        <div id="history-toggle-snack" class="toggle-switch"></div>
+                    </div>
+                </div>
+
+                <div class="flex space-x-3 mt-6">
+                    <button id="history-save-btn"
+                            class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">
+                        Save Changes
+                    </button>
+                    <button id="history-cancel-btn"
+                            class="py-3 px-5 bg-gray-300 text-gray-800 font-bold rounded-lg hover:bg-gray-400 transition">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- END NEW HISTORY EDIT MODAL -->
 
         
         <div class="mt-4 text-center text-xs text-gray-400">
@@ -283,15 +357,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
 /* ------------------------------
-    Firebase Configuration (CORRECTED to hero-habit-tracker)
+    Firebase Configuration (Corrected Project ID)
 -------------------------------- */
-// 🚨 NOTE: The values used below are the ones provided for the working project, 
-// but the 'projectId' field below is the key identifier that has been corrected.
 const firebaseConfig = {
   apiKey: "AIzaSyANdoLSgsq0eXCOtRkVZsL9TZ4aaeIf-C8",
-  authDomain: "hero-habit-tracker.firebaseapp.com", // Corrected domain based on project name
-  projectId: "hero-habit-tracker", // 🛑 CORRECT PROJECT ID USED FOR DEMO PURPOSES 🛑
-  storageBucket: "hero-habit-tracker.firebasestorage.app", // Corrected storage
+  authDomain: "hero-habit-tracker.firebaseapp.com", 
+  projectId: "hero-habit-tracker", 
+  storageBucket: "hero-habit-tracker.firebasestorage.app", 
   messagingSenderId: "972378549937",
   appId: "1:972378549937:web:1488d67ade251918b14af9",
   measurementId: "G-98P14X7MZZ"
@@ -312,6 +384,74 @@ const PROFILE_COLLECTION = `artifacts/${appId}/public/data/hero_profiles`;
 let heroProfile = null;
 let heroName = localStorage.getItem("heroName") || null;
 const DB_TIMEOUT_MS = 5000;
+let currentEditingDate = null; // New state for history editing
+
+
+/* ------------------------------
+    Badge Definitions
+-------------------------------- */
+
+function getLevel(points) {
+    if (points < 50) return 1;
+    return Math.floor(points / 50) + 1;
+}
+
+const BADGES = {
+    'starter_star': {
+        name: "Starter Star",
+        description: "Earn 50 Total Points.",
+        criteria: (data) => data.points >= 50,
+        icon: '⭐️'
+    },
+    'level_climber': {
+        name: "Level Climber",
+        description: "Reach Level 5.",
+        criteria: (data) => getLevel(data.points) >= 5,
+        icon: '⬆️'
+    },
+    'hiit_master': {
+        name: "HIIT Master",
+        description: "Complete 10 Workouts.",
+        criteria: (data) => data.workoutCount >= 10,
+        icon: '🏋️'
+    },
+    'marathoner': {
+        name: "Marathoner",
+        description: "Complete 50 Workouts.",
+        criteria: (data) => data.workoutCount >= 50,
+        icon: '🏃‍♂️'
+    },
+    'clean_eater': {
+        name: "Clean Eater",
+        description: "Log 10 Healthy Food Choices.",
+        criteria: (data) => data.snackCount >= 10,
+        icon: '🥗'
+    },
+    'food_journaler': {
+        name: "Food Journaler",
+        description: "Log 100 Healthy Food Choices.",
+        criteria: (data) => data.snackCount >= 100,
+        icon: '📚'
+    },
+    'baby_streak': {
+        name: "Baby Streak",
+        description: "Hit a 3-day completion streak.",
+        criteria: (data) => data.streak >= 3,
+        icon: '🥉'
+    },
+    'weekly_warrior': {
+        name: "Weekly Warrior",
+        description: "Hit a 7-day completion streak.",
+        criteria: (data) => data.streak >= 7,
+        icon: '🥈'
+    },
+    'monthly_master': {
+        name: "Monthly Master",
+        description: "Hit a 30-day completion streak.",
+        criteria: (data) => data.streak >= 30,
+        icon: '🥇'
+    }
+};
 
 
 /* ------------------------------
@@ -389,6 +529,11 @@ async function saveProfile() {
     if (!heroProfile || !heroProfile.heroName) return;
 
     try {
+        // Ensure new properties (like counts/badges) exist before merging
+        heroProfile.workoutCount = heroProfile.workoutCount || 0;
+        heroProfile.snackCount = heroProfile.snackCount || 0;
+        heroProfile.earnedBadges = heroProfile.earnedBadges || {};
+        
         const id = sanitizeName(heroProfile.heroName);
         const ref = doc(db, PROFILE_COLLECTION, id);
         await setDoc(ref, heroProfile, { merge: true });
@@ -418,6 +563,297 @@ function createNewProfile(name) {
 }
 
 /* ------------------------------
+    Badge Logic
+-------------------------------- */
+
+function checkForBadges() {
+    let newBadgesEarned = false;
+
+    Object.keys(BADGES).forEach(key => {
+        const badge = BADGES[key];
+        // Check if the badge is NOT already earned AND the criteria is met
+        if (!heroProfile.earnedBadges[key] && badge.criteria(heroProfile)) {
+            heroProfile.earnedBadges[key] = true;
+            newBadgesEarned = true;
+            showMessage("Badge Unlocked! 🏅", `You earned the **${badge.name}** badge! Keep up the amazing work!`);
+            console.log(`Badge unlocked: ${badge.name}`);
+        }
+    });
+    return newBadgesEarned;
+}
+
+function renderBadges() {
+    const container = document.getElementById('badges-container');
+    container.innerHTML = ''; 
+
+    if (!heroProfile || !heroProfile.earnedBadges) return;
+
+    Object.keys(BADGES).forEach(key => {
+        const badge = BADGES[key];
+        const isEarned = heroProfile.earnedBadges[key] === true;
+
+        const badgeHtml = `
+            <div class="text-center p-2 rounded-lg" title="${badge.description}">
+                <span class="text-5xl badge-icon ${isEarned ? 'earned' : ''}">${badge.icon}</span>
+                <p class="text-xs font-semibold mt-1 ${isEarned ? 'text-teal-700' : 'text-gray-500'}">${badge.name}</p>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', badgeHtml);
+    });
+}
+
+/* ------------------------------
+    Streak Logic
+-------------------------------- */
+
+function checkStreakContinuity() {
+    const lastCheckIn = heroProfile.lastCheckIn;
+
+    if (!lastCheckIn) {
+        // First time user starts the app, streak is 0.
+        heroProfile.streak = 0;
+        return;
+    }
+
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const isLastDateToday = new Date(lastCheckIn).toDateString() === today.toDateString();
+    
+    // Check if the last check-in was yesterday
+    const isConsecutive = new Date(lastCheckIn).toDateString() === yesterday.toDateString();
+
+    if (!isLastDateToday && !isConsecutive && heroProfile.streak > 0) {
+        // Streak broken
+        showMessage("Streak Broken 😔", `Your streak of ${heroProfile.streak} days ended! Don't worry, start a new one today!`);
+        heroProfile.streak = 0;
+        return true;
+    }
+    return false;
+}
+
+function updateStreak(todayDateString) {
+    const today = new Date().toDateString();
+    
+    // Check if yesterday's full completion was achieved to maintain the streak
+    const progressToday = heroProfile.progress.filter(p => p.date === today);
+    const didCompleteWorkout = progressToday.some(p => p.action === 'workout');
+    const didCompleteSnack = progressToday.some(p => p.action === 'snack');
+
+    // Only update streak if BOTH are complete
+    if (didCompleteWorkout && didCompleteSnack) {
+        const lastCheckIn = heroProfile.lastCheckIn;
+        const lastCheckInDateString = lastCheckIn ? new Date(lastCheckIn).toDateString() : null;
+        
+        const isAlreadyUpdatedToday = lastCheckInDateString === today;
+        
+        if (isAlreadyUpdatedToday) {
+            // Streak already updated today
+            return; 
+        }
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayDateString = yesterday.toDateString();
+
+        if (lastCheckInDateString === yesterdayDateString) {
+            // Consecutive day completion! Increment streak.
+            heroProfile.streak = (heroProfile.streak || 0) + 1;
+            showMessage("Streak Progress! 🔥", `You hit all your goals! Your streak is now ${heroProfile.streak} days!`);
+        } else if (!lastCheckIn) {
+            // First ever completion
+            heroProfile.streak = 1;
+            showMessage("Streak Started! 🎉", `You hit all your goals and started a 1-day streak!`);
+        } else {
+            // Completion, but not consecutive (Start a new streak of 1)
+             if (heroProfile.streak === 0) {
+                 heroProfile.streak = 1;
+             }
+        }
+        
+        // Update last check-in date ONLY when full completion is reached
+        heroProfile.lastCheckIn = today;
+    }
+}
+
+/* ------------------------------
+    Daily Completion Status & Lockout
+-------------------------------- */
+function getDailyStatus() {
+    if (!heroProfile) return { workout: false, snack: false };
+    const today = new Date().toDateString();
+    const progressToday = heroProfile.progress.filter(p => p.date === today);
+    
+    return {
+        workout: progressToday.some(p => p.action === 'workout'),
+        snack: progressToday.some(p => p.action === 'snack')
+    };
+}
+
+function renderCheckInButtons() {
+    const status = getDailyStatus();
+    const workoutBtn = document.getElementById('check-workout');
+    const snackBtn = document.getElementById('check-snack');
+
+    const updateButton = (btn, isDone) => {
+        if (isDone) {
+            btn.classList.add('checked');
+            btn.classList.remove('not-checked');
+            btn.textContent = 'Completed!';
+            btn.disabled = true;
+        } else {
+            btn.classList.remove('checked');
+            btn.classList.add('not-checked');
+            btn.textContent = 'Check In';
+            btn.disabled = false;
+        }
+    };
+
+    updateButton(workoutBtn, status.workout);
+    updateButton(snackBtn, status.snack);
+}
+
+/* ------------------------------
+    History Editing Functions
+-------------------------------- */
+
+function getDayStatusFromProfile(dateString) {
+    const progressForDay = heroProfile.progress.filter(p => p.date === dateString);
+    return {
+        workout: progressForDay.some(p => p.action === 'workout'),
+        snack: progressForDay.some(p => p.action === 'snack'),
+        workoutIndex: progressForDay.findIndex(p => p.action === 'workout'),
+        snackIndex: progressForDay.findIndex(p => p.action === 'snack'),
+    };
+}
+
+function updateProfilePointsAndCounts(oldStatus, newStatus) {
+    let pointsChange = 0;
+    let workoutChange = 0;
+    let snackChange = 0;
+
+    // Calculate Workout changes
+    if (!oldStatus.workout && newStatus.workout) { // Added
+        pointsChange += 10;
+        workoutChange += 1;
+    } else if (oldStatus.workout && !newStatus.workout) { // Removed
+        pointsChange -= 10;
+        workoutChange -= 1;
+    }
+
+    // Calculate Snack changes
+    if (!oldStatus.snack && newStatus.snack) { // Added
+        pointsChange += 5;
+        snackChange += 1;
+    } else if (oldStatus.snack && !newStatus.snack) { // Removed
+        pointsChange -= 5;
+        snackChange -= 1;
+    }
+
+    // Apply changes to profile stats
+    heroProfile.points += pointsChange;
+    heroProfile.workoutCount += workoutChange;
+    heroProfile.snackCount += snackChange;
+
+    // Recalculate Cheat Meal Tokens
+    const oldCheatMeals = Math.floor((heroProfile.snackCount - snackChange) / 5);
+    const newCheatMeals = Math.floor(heroProfile.snackCount / 5);
+    heroProfile.cheatMealsEarned += (newCheatMeals - oldCheatMeals);
+    
+    // Streak logic is complex for retrospective edits and is usually handled externally
+    // However, we must ensure the points/counts are accurate.
+}
+
+
+function showHistoryModal(dateString) {
+    const todayDate = new Date().toDateString();
+    const selectedDate = new Date(dateString).toDateString();
+    
+    if (selectedDate === todayDate) {
+        showMessage("Cannot Edit Today", "Please use the Check In buttons above for today's goals.");
+        return;
+    }
+
+    // Lock future dates
+    if (new Date(dateString) > new Date(todayDate)) {
+        showMessage("Future Date", "You cannot edit future entries yet.");
+        return;
+    }
+
+    currentEditingDate = dateString;
+    const status = getDayStatusFromProfile(dateString);
+
+    document.getElementById('history-modal-title').textContent = "Edit Journal Entry";
+    document.getElementById('history-modal-date').textContent = `Date: ${selectedDate}`;
+
+    const workoutToggle = document.getElementById('history-toggle-workout');
+    const snackToggle = document.getElementById('history-toggle-snack');
+
+    // Reset toggles
+    workoutToggle.className = status.workout ? 'toggle-switch checked' : 'toggle-switch';
+    snackToggle.className = status.snack ? 'toggle-switch checked' : 'toggle-switch';
+
+    // Add click listeners to toggle switches
+    workoutToggle.onclick = () => workoutToggle.classList.toggle('checked');
+    snackToggle.onclick = () => snackToggle.classList.toggle('checked');
+
+    document.getElementById('history-modal').classList.remove('hidden');
+}
+
+document.getElementById('history-cancel-btn').onclick = () => {
+    document.getElementById('history-modal').classList.add('hidden');
+    currentEditingDate = null;
+};
+
+
+document.getElementById('history-save-btn').onclick = async () => {
+    if (!currentEditingDate || !heroProfile) return;
+
+    const oldStatus = getDayStatusFromProfile(currentEditingDate);
+    const newStatus = {
+        workout: document.getElementById('history-toggle-workout').classList.contains('checked'),
+        snack: document.getElementById('history-toggle-snack').classList.contains('checked')
+    };
+
+    if (oldStatus.workout === newStatus.workout && oldStatus.snack === newStatus.snack) {
+        document.getElementById('history-modal').classList.add('hidden');
+        currentEditingDate = null;
+        return;
+    }
+
+    // 1. Update Core Stats (Points, Counts, Tokens)
+    updateProfilePointsAndCounts(oldStatus, newStatus);
+    
+    // 2. Modify Progress Array
+    const originalProgress = heroProfile.progress.filter(p => p.date !== currentEditingDate);
+    
+    if (newStatus.workout) {
+        originalProgress.push({ date: currentEditingDate, action: 'workout' });
+    }
+    if (newStatus.snack) {
+        originalProgress.push({ date: currentEditingDate, action: 'snack' });
+    }
+    heroProfile.progress = originalProgress;
+    
+    // 3. Re-run necessary checks
+    checkForBadges();
+
+    // 4. Save and Render
+    await saveProfile();
+    document.getElementById('history-modal').classList.add('hidden');
+    
+    // --- FIX APPLIED HERE ---
+    const dateToDisplay = currentEditingDate; // Capture the correct date string
+    currentEditingDate = null; // Reset the variable
+    
+    renderUI();
+    // Use the captured date string in the message
+    showMessage("History Updated!", `The entry for ${dateToDisplay} has been updated.`);
+};
+
+
+/* ------------------------------
     Initialize Hero Profile (Loads/Creates data)
 -------------------------------- */
 async function initProfile() {
@@ -425,10 +861,20 @@ async function initProfile() {
     heroProfile = await loadProfile(heroName);
 
     if (!heroProfile) {
-      // Profile load failed (e.g., timeout), create a new local session profile
       heroProfile = createNewProfile(heroName);
+      await saveProfile(); 
     }
 
+    // Ensure all necessary fields exist after loading old data
+    heroProfile.earnedBadges = heroProfile.earnedBadges || {};
+    heroProfile.workoutCount = heroProfile.workoutCount || 0;
+    heroProfile.snackCount = heroProfile.snackCount || 0;
+    heroProfile.cheatMealsEarned = heroProfile.cheatMealsEarned || 0;
+    heroProfile.streak = heroProfile.streak || 0; 
+    
+    checkStreakContinuity(); // Check if streak was broken overnight
+
+    checkForBadges();
     renderUI();
     return;
   }
@@ -451,15 +897,14 @@ async function processProfileSetup(name) {
     heroProfile = await loadProfile(name);
 
     if (!heroProfile) {
-        // If load fails, create new profile locally and attempt save in background
         heroProfile = createNewProfile(name);
         await saveProfile(); 
     } else {
-        // If load succeeds, update profile on load
         await saveProfile(); 
     }
     
     startJourneyBtn.disabled = false;
+    checkForBadges();
     renderUI();
 }
 
@@ -491,10 +936,9 @@ document.getElementById("start-journey-btn").onclick = (e) => {
 
 
 /* ------------------------------
-    Check-In Logic (HIIT Workout)
+    Check-In Logic (Workout)
 -------------------------------- */
 document.getElementById("check-workout").onclick = async () => {
-    // Requires profile to be loaded
     if (!heroProfile) return; 
     
     const today = new Date().toDateString();
@@ -502,26 +946,33 @@ document.getElementById("check-workout").onclick = async () => {
     const alreadyChecked = heroProfile.progress.find(p => p.date === today && p.action === 'workout');
     
     if (alreadyChecked) {
-        showMessage("Already Done!", "You already completed your HIIT Workout today.");
+        showMessage("Already Done!", "You already completed your Workout today.");
         return;
     }
 
-    heroProfile.progress.push({ date: today, action: "workout" });
+    heroProfile.progress.push({ date: today, action: 'workout' }); // Use 'workout' action key
     
-    // Re-implementing original logic
+    // Update Stats
     heroProfile.workoutCount = (heroProfile.workoutCount || 0) + 1;
     heroProfile.points = (heroProfile.points || 0) + 10;
     
+    checkForBadges(); 
+    
+    // Check if this action completes the daily goal to update the streak
+    const didCompleteSnack = getDailyStatus().snack;
+    if (didCompleteSnack) {
+        updateStreak(today);
+    }
+    
     await saveProfile();
     renderUI();
-    showMessage("Workout Logged!", "HIIT Workout complete! +10 Points.");
+    showMessage("Workout Logged!", "Workout complete! +10 Points.");
 };
 
 /* ------------------------------
-    Snack (Healthy Snack)
+    Snack (Healthy Food Choices)
 -------------------------------- */
 document.getElementById("check-snack").onclick = async () => {
-    // Requires profile to be loaded
     if (!heroProfile) return; 
 
     const today = new Date().toDateString();
@@ -529,12 +980,13 @@ document.getElementById("check-snack").onclick = async () => {
     const alreadyChecked = heroProfile.progress.find(p => p.date === today && p.action === 'snack');
     
     if (alreadyChecked) {
-        showMessage("Already Done!", "You already logged a Healthy Snack today.");
+        showMessage("Already Done!", "You already logged your Healthy Food Choices today.");
         return;
     }
 
-    heroProfile.progress.push({ date: today, action: "snack" });
+    heroProfile.progress.push({ date: today, action: 'snack' }); // Use 'snack' action key
     
+    // Update Stats
     heroProfile.snackCount = (heroProfile.snackCount || 0) + 1;
     heroProfile.points = (heroProfile.points || 0) + 5;
     
@@ -544,9 +996,17 @@ document.getElementById("check-snack").onclick = async () => {
         showMessage("Cheat Meal Unlocked! 🍕", `You earned a token! Total tokens: ${heroProfile.cheatMealsEarned}`);
     }
     
+    checkForBadges(); 
+    
+    // Check if this action completes the daily goal to update the streak
+    const didCompleteWorkout = getDailyStatus().workout;
+    if (didCompleteWorkout) {
+        updateStreak(today);
+    }
+
     await saveProfile();
     renderUI();
-    showMessage("Snack Logged!", "Healthy Snack complete! +5 Points.");
+    showMessage("Snack Logged!", "Healthy Food Choices complete! +5 Points.");
 };
 
 /* ------------------------------
@@ -584,10 +1044,18 @@ function renderUI() {
   const snacksNeeded = 5 - (snacksCount % 5);
   document.getElementById("snacks-to-next-reward").innerText = snacksNeeded === 5 ? 5 : snacksNeeded;
 
-  // Placeholder for Badges
-  document.getElementById("badges-container").innerHTML = "<p class='col-span-4 text-gray-500 text-center text-sm'>Badges logic requires re-implementation.</p>";
-  
+  renderBadges(); 
+  renderCheckInButtons(); 
   renderRoadmap();
+  
+  // RENDER PROGRESS BAR
+  const currentLevel = getLevel(heroProfile.points);
+  const pointsInCurrentLevel = (heroProfile.points || 0) % 50;
+  const progressPercentage = (pointsInCurrentLevel / 50) * 100;
+  
+  document.getElementById('next-level-display').textContent = currentLevel + 1;
+  document.getElementById('points-current-in-level').textContent = pointsInCurrentLevel;
+  document.getElementById('level-progress-bar').style.width = `${progressPercentage}%`;
 }
 
 /* ------------------------------
@@ -620,6 +1088,13 @@ function renderRoadmap() {
     const stop = document.createElement("div");
     stop.className = "day-stop";
     stop.title = dateStr;
+    stop.dataset.date = dateStr; // Store the date for click handler
+    
+    // Add click handler for history editing
+    if (dateStr !== new Date().toDateString()) {
+        stop.onclick = () => showHistoryModal(dateStr);
+    }
+    
 
     const status = progressByDate[dateStr];
     
