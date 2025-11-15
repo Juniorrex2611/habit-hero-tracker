@@ -277,6 +277,11 @@
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
+        // NOTE FOR EXTERNAL DEPLOYMENT: If running this outside the Canvas environment, 
+        // replace the empty object with your public Firebase configuration here:
+        // const MY_FIREBASE_CONFIG = { apiKey: "...", authDomain: "...", projectId: "..." };
+        // const firebaseConfig = MY_FIREBASE_CONFIG; 
+        
         let app;
         let db;
         let auth;
@@ -659,6 +664,7 @@
                 updateUI();
             } catch (error) {
                 console.error("Error fetching or initializing user data:", error);
+                document.getElementById('auth-status').textContent = 'Error: Could not load user data from Firestore.';
             }
         }
 
@@ -800,19 +806,45 @@
 
         // --- INITIALIZATION ---
         async function initializeFirebase() {
-            try {
-                if (Object.keys(firebaseConfig).length === 0) {
-                    console.warn("Firebase config is missing. App cannot persist data.");
-                    document.getElementById('auth-status').textContent = 'Error: Firebase config missing. Data will not save.';
-                    return;
+            // 1. Attach Event Listeners (Do this first so buttons work even if Firebase fails)
+            document.getElementById('check-workout').addEventListener('click', () => completeTask('WORKOUT'));
+            document.getElementById('check-snack').addEventListener('click', () => completeTask('SNACK'));
+            document.getElementById('use-cheat-meal').addEventListener('click', useCheatMeal); 
+            document.getElementById('close-message').addEventListener('click', hideMessage);
+            
+            // Hero Name Modal Listeners
+            document.getElementById('set-hero-name').addEventListener('click', setHeroName);
+            document.getElementById('hero-name-input').addEventListener('input', (e) => {
+                const button = document.getElementById('set-hero-name');
+                if (e.target.value.trim().length > 0) {
+                    button.disabled = false;
+                    button.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    button.disabled = true;
+                    button.classList.add('opacity-50', 'cursor-not-allowed');
                 }
+            });
 
+            // 2. Initialize Firebase and Authentication
+            if (Object.keys(firebaseConfig).length === 0) {
+                console.warn("Firebase config is missing. App cannot persist data.");
+                document.getElementById('auth-status').textContent = 'Warning: Firebase config missing. Data will not save permanently.';
+                // If config is missing, we must manually set dummy data so the app can run locally without errors.
+                userId = 'local_dummy_user';
+                userRef = null; // Don't allow Firestore operations
+                userData = getInitialUserData();
+                updateUI(); // Render the UI with dummy data and prompt for hero name
+                if (!userData.heroName) { showHeroNameModal(); }
+                return;
+            }
+
+            try {
                 setLogLevel('error');
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
 
-                // 1. Handle Authentication
+                // Handle Authentication
                 let authPromise;
                 if (initialAuthToken) {
                     authPromise = signInWithCustomToken(auth, initialAuthToken);
@@ -832,27 +864,6 @@
                         document.getElementById('auth-status').textContent = 'Authentication failed.';
                     }
                 });
-
-                // 2. Attach Event Listeners
-                document.getElementById('check-workout').addEventListener('click', () => completeTask('WORKOUT'));
-                document.getElementById('check-snack').addEventListener('click', () => completeTask('SNACK'));
-                document.getElementById('use-cheat-meal').addEventListener('click', useCheatMeal); 
-                document.getElementById('close-message').addEventListener('click', hideMessage);
-                
-                // Hero Name Modal Listeners
-                document.getElementById('set-hero-name').addEventListener('click', setHeroName);
-                document.getElementById('hero-name-input').addEventListener('input', (e) => {
-                    const button = document.getElementById('set-hero-name');
-                    if (e.target.value.trim().length > 0) {
-                        button.disabled = false;
-                        button.classList.remove('opacity-50', 'cursor-not-allowed');
-                    } else {
-                        button.disabled = true;
-                        button.classList.add('opacity-50', 'cursor-not-allowed');
-                    }
-                });
-
-
             } catch (error) {
                 console.error("Firebase initialization error:", error);
                 document.getElementById('auth-status').textContent = `Initialization Error.`;
